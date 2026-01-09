@@ -1,0 +1,6 @@
+@Intranet.Services.DocumentoAPI_HostAddress = http://localhost:5092
+
+GET {{Intranet.Services.DocumentoAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@Intranet.Services.ComunicacaoAPI_HostAddress = http://localhost:5065
+
+GET {{Intranet.Services.ComunicacaoAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@Intranet.Services.EscalaAPI_HostAddress = http://localhost:5205
+
+GET {{Intranet.Services.EscalaAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
