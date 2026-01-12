@@ -9,7 +9,6 @@ public class UserProfileDto
     public int MemberId { get; set; }
 
     public WorkDto? Work { get; set; }
-
     public List<EducationDto> Educations { get; set; } = new();
 
     public string? ProfilePicture { get; set; }

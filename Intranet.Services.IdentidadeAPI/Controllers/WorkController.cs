@@ -67,7 +67,7 @@ public class WorkController : ControllerBase
         return Ok(_response);
     }
 
-    [HttpGet("Getworkby/{id:int}")]
+    [HttpGet("GetworkbyProfile/{id:int}")]
     public async Task<ActionResult<Work>> GetByProfileAsync(int id)
     {
         try

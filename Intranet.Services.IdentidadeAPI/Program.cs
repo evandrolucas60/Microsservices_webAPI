@@ -4,6 +4,8 @@ using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Extensions;
 using Intranet.Services.IdentidadeAPI.Repository;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Service;
+using Intranet.Services.IdentidadeAPI.Service.IService;
 using Intranet.Services.IdentidadeAPI.Utility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,8 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnityOfWork, UnityOfWork>();
 builder.Services.AddScoped<IWorkRepository, WorkRepository>();
 builder.Services.AddScoped<IEducationRepository, EducationRepository>();
+builder.Services.AddScoped<IWorkService, WorkService>();
+builder.Services.AddScoped<IEducationService, EducationService>();
 builder.Services.AddScoped<BackendApiAuthenticationHttpClientHandler>();
 builder.Services.AddHttpContextAccessor();
 

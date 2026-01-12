@@ -13,11 +13,14 @@ public class UserProfile
     // 🔹 Relacionamento 1–1
     public int MemberId { get; set; }
 
+
     // 🔹 Relacionamento 1–1
     public Work Work{ get; set; }
 
+
     // 🔹 Relacionamento 1–N
     public ICollection<Education> ProfileEducations { get; set; }
+
 
     // 🔹 Dados do perfil
     public string? ProfilePicture { get; set; }
