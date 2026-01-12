@@ -4,6 +4,6 @@ namespace Intranet.Services.IdentidadeAPI.Service.IService
 {
     public interface IWorkService
     {
-        Task<WorkDto> GetWork(int ProfileId);
+        Task<WorkDto> GetWorkByProfileId(int ProfileId);
     }
 }

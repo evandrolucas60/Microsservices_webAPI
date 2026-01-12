@@ -4,6 +4,6 @@ namespace Intranet.Services.IdentidadeAPI.Service.IService
 {
     public interface IEducationService
     {
-        Task<IEnumerable<EducationDto>> GetEducations(int profileId);
+        Task<IEnumerable<EducationDto>> GetEducationsByProfileId(int profileId);
     }
 }

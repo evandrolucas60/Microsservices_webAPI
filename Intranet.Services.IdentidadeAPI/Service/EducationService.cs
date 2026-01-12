@@ -13,7 +13,7 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<IEnumerable<EducationDto>> GetEducations(int profileId)
+        public async Task<IEnumerable<EducationDto>> GetEducationsByProfileId(int profileId)
         {
             var client = _httpClientFactory.CreateClient("Education");
             var response = await client.GetAsync($"/api/Education/{profileId}");

@@ -3,6 +3,6 @@
     public class UserDto
     {
         public MemberDto Member {  get; set; }
-        public UserProfileDto profile {  get; set; }
+        public UserProfileDto Profile {  get; set; }
     }
 }

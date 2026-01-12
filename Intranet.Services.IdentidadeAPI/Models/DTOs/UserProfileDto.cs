@@ -8,7 +8,7 @@ public class UserProfileDto
     public int ProfileId { get; set; }
     public int MemberId { get; set; }
 
-    public Work? Work { get; set; }
+    public WorkDto? Work { get; set; }
 
     public List<EducationDto> Educations { get; set; } = new();
 
