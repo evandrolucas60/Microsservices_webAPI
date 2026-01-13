@@ -13,10 +13,10 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<WorkDto> GetWorkByProfileId(int ProfileId)
+        public async Task<WorkDto> GetWorkByProfileId(int MemberId)
         {
             var client = _httpClientFactory.CreateClient("Work");
-            var response = await client.GetAsync($"api/Work/{ProfileId}");
+            var response = await client.GetAsync($"api/Work/{MemberId}");
             var apiContente = await response.Content.ReadAsStringAsync();
 
             var resp = JsonConvert.DeserializeObject<ResponseDto>(apiContente);

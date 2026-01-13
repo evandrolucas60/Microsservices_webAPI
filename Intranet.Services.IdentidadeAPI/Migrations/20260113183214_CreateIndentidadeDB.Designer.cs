@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Intranet.Services.IdentidadeAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260112194025_creatingIdentidadeDB")]
-    partial class creatingIdentidadeDB
+    [Migration("20260113183214_CreateIndentidadeDB")]
+    partial class CreateIndentidadeDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -180,7 +180,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int>("ProfileId")
+                    b.Property<int>("MemberId")
                         .HasColumnType("int");
 
                     b.Property<string>("Registration")

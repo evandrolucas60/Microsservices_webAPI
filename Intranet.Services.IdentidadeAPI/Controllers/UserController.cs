@@ -30,7 +30,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("GetProfileInfo")]
-    public async Task<ActionResult<ResponseDto>> GetProfileInfo(string userId)
+    public async Task<ActionResult> GetProfileInfo(string userId)
     {
         try
         {
@@ -46,7 +46,7 @@ public class UserController : ControllerBase
 
             var educatios = await _educationService.GetEducationsByProfileId(profile.ProfileId);
 
-            UserDto user = new ()
+            UserDto user = new()
             {
                 Member = _mapper.Map<MemberDto>(member),
                 Profile = _mapper.Map<UserProfileDto>(profile)
@@ -63,48 +63,75 @@ public class UserController : ControllerBase
             _response.IsSuccess = false;
             _response.Message = ex.Message;
         }
-        
-        return _response;
+
+        return Ok(_response);
     }
 
     [HttpPost("UserUpsert")]
-    public async Task<ResponseDto> UserUpsert([FromBody]UserDto userDto)
+    public async Task<ActionResult> UserUpsert([FromBody] UserDto userDto)
     {
+        var response = new ResponseDto();
+
         try
         {
-            var memberFromDb = await _uof.MemberRepository.GetAsync(u => u.UserId == userDto.Member.UserId);
-            if (memberFromDb == null)
-            {
-                memberFromDb = _mapper.Map<Models.Member>(userDto.Member);
-                _uof.MemberRepository.Create(memberFromDb);
-                await _uof.CommitAsync();
+            var member = await _uof.MemberRepository
+                .GetAsync(m => m.UserId == userDto.Member.UserId);
 
-                userDto.Profile.MemberId = memberFromDb.MemberId;
-                UserProfile profile = _mapper.Map<UserProfile>(userDto.Profile);
-                _uof.ProfileRepository.Create(profile);
-                await _uof.CommitAsync();
+            if (member == null)
+            {
+                member = _mapper.Map<Models.Member>(userDto.Member);
+                _uof.MemberRepository.Create(member);
             }
             else
             {
-                _mapper.Map(userDto.Member, memberFromDb);
-                _uof.MemberRepository.Update(memberFromDb);
-                await _uof.CommitAsync();
-
-                userDto.Profile.MemberId = memberFromDb.MemberId;
-                UserProfile profile = _mapper.Map<UserProfile>(userDto.Profile);
-                _uof.ProfileRepository.Update(profile);
-                await _uof.CommitAsync();
+                _mapper.Map(userDto.Member, member);
+                _uof.MemberRepository.Update(member);
             }
-                _response.Result = userDto;
 
+            await _uof.CommitAsync();
+
+            var profile = await _uof.ProfileRepository
+                .GetAsync(p => p.MemberId == member.MemberId);
+
+            if (profile == null)
+            {
+                profile = _mapper.Map<UserProfile>(userDto.Profile);
+                profile.MemberId = member.MemberId;
+                _uof.ProfileRepository.Create(profile);
+            }
+            else
+            {
+                _mapper.Map(userDto.Profile, profile);
+                _uof.ProfileRepository.Update(profile);
+            }
+
+            await _uof.CommitAsync();
+
+            //if (userDto.Profile.Work != null)
+            //{
+            //    await _workService.UpsertWorkAsync(
+            //        member.MemberId,
+            //        userDto.Profile.Work
+            //    );
+            //}
+
+            //if (userDto.Profile.Educations?.Any() == true)
+            //{
+            //    await _educationService.UpsertEducationsAsync(
+            //        profile.ProfileId,
+            //        userDto.Profile.Educations
+            //    );
+            //}
+
+            response.Result = userDto;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao criar usuário");
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
+            _logger.LogError(ex, "Erro ao criar/atualizar usuário");
+            response.IsSuccess = false;
+            response.Message = ex.Message;
         }
-        return _response;
-    }
 
+        return Ok(response);
+    }
 }

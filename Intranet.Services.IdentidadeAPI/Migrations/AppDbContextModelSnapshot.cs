@@ -177,7 +177,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int>("ProfileId")
+                    b.Property<int>("MemberId")
                         .HasColumnType("int");
 
                     b.Property<string>("Registration")

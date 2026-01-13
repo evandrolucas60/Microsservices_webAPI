@@ -14,5 +14,5 @@ public class Work
     public string Registration { get; set; }
     public string Description { get; set; }
 
-    public int ProfileId { get; set; }
+    public int MemberId { get; set; }
 }

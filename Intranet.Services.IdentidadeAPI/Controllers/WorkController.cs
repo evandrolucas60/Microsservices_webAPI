@@ -67,12 +67,12 @@ public class WorkController : ControllerBase
         return Ok(_response);
     }
 
-    [HttpGet("GetworkbyProfile/{id:int}")]
+    [HttpGet("GetworkbyMember/{id:int}")]
     public async Task<ActionResult<Work>> GetByProfileAsync(int id)
     {
         try
         {
-            var obj = await _uof.WorkRepository.GetAsync(c => c.ProfileId == id);
+            var obj = await _uof.WorkRepository.GetAsync(c => c.MemberId == id);
             _response.Result = _mapper.Map<WorkDto>(obj);
 
             if (obj is null)
