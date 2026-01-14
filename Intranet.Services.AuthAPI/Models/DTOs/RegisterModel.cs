@@ -4,8 +4,6 @@ namespace Intranet.Services.AuthAPI.Models.DTOs
 {
     public class RegisterModel
     {
-        [Required(ErrorMessage = "UserName is required!!")]
-        public string? Username { get; set; }
         [EmailAddress]
         [Required(ErrorMessage = "Email is required!!")]
         public string? Email { get; set; }

@@ -42,7 +42,7 @@ public class UserController : ControllerBase
 
             if (profile == null) return NotFound("Profile não encontrado");
 
-            var work = await _workService.GetWorkByProfileId(profile.ProfileId);
+            var work = await _workService.GetWorkByMemberId(member.MemberId);
 
             var educatios = await _educationService.GetEducationsByProfileId(profile.ProfileId);
 

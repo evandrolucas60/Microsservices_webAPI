@@ -2,8 +2,10 @@ using Intranet.Services.AuthAPI.Data;
 using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Service;
 using Intranet.Services.AuthAPI.Service.IService;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,18 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DefaultPolicy", builder =>
+    {
+        builder.WithOrigins("http://localhost:5173", "http://10.11.10.5:31")
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .AllowCredentials()
+               .WithExposedHeaders("Authorization");
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -35,6 +49,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("DefaultPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 

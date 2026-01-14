@@ -145,6 +145,7 @@ public class AuthController : ControllerBase
                     Token = new JwtSecurityTokenHandler().WriteToken(token),
                     RefreshToken = refreshToken,
                     Expiration = token.ValidTo,
+                    UserName = user.UserName,
                 });
         }
         return Unauthorized();
@@ -154,7 +155,7 @@ public class AuthController : ControllerBase
     [Route("register")]
     public async Task<IActionResult> Register([FromBody] RegisterModel model)
     {
-        var userExists = await _userManager.FindByNameAsync(model.Username!);
+        var userExists = await _userManager.FindByNameAsync(model.Email!);
 
         if (userExists != null)
         {
@@ -165,7 +166,7 @@ public class AuthController : ControllerBase
         {
             Email = model.Email,
             SecurityStamp = Guid.NewGuid().ToString(),
-            UserName = model.Username
+            UserName = model.Email
         };
         var result = await _userManager.CreateAsync(user, model.Password!);
 
@@ -220,23 +221,24 @@ public class AuthController : ControllerBase
             });
     }
 
-    [Authorize]
     [HttpPost]
     [Route("revoke/{username}")]
     public async Task<IActionResult> Revoke(string username)
     {
-        var user = await _userManager.FindByIdAsync(username);
+        var user = await _userManager.FindByNameAsync(username);
 
-        if (user == null) return BadRequest("Invalid username");
+        if (user == null) return BadRequest("Invaild username");
 
+        // Revogando o refresh token
         user.RefreshToken = null;
         var result = await _userManager.UpdateAsync(user);
 
         if (!result.Succeeded)
         {
+            // Caso ocorra algum erro durante a atualização do usuário
             return StatusCode(500, "Internal server error");
         }
 
-        return NoContent();
+        return NoContent(); // Logout bem-sucedido
     }
 }
