@@ -44,7 +44,7 @@ public class UserController : ControllerBase
 
             var work = await _workService.GetWorkByMemberId(member.MemberId);
 
-            var educatios = await _educationService.GetEducationsByProfileId(profile.ProfileId);
+            var educations = await _educationService.GetEducationsByProfileId(profile.ProfileId);
 
             UserDto user = new()
             {
@@ -52,8 +52,8 @@ public class UserController : ControllerBase
                 Profile = _mapper.Map<UserProfileDto>(profile)
             };
 
-            user.Profile.Work = work; ;
-            user.Profile.Educations = educatios.ToList();
+            user.Profile.Work = work;
+            user.Profile.Educations = educations;
 
             _response.Result = user;
         }

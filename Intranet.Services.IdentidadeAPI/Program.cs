@@ -71,6 +71,18 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DefaultPolicy", builder =>
+    {
+        builder.WithOrigins("http://localhost:5173", "http://10.11.10.5:31")
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .AllowCredentials()
+               .WithExposedHeaders("Authorization");
+    });
+});
+
 builder.AddAppAuthentication();
 
 builder.Services.AddAuthorization();
@@ -85,6 +97,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("DefaultPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -13,7 +13,7 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<IEnumerable<EducationDto>> GetEducationsByProfileId(int profileId)
+        public async Task<EducationDto> GetEducationsByProfileId(int profileId)
         {
             var client = _httpClientFactory.CreateClient("Education");
             var response = await client.GetAsync($"/api/Education/{profileId}");
@@ -23,10 +23,10 @@ namespace Intranet.Services.IdentidadeAPI.Service
 
             if (resp != null && resp.IsSuccess)
             {
-                return JsonConvert.DeserializeObject<IEnumerable<EducationDto>>(Convert.ToString(resp.Result));
+                return JsonConvert.DeserializeObject<EducationDto>(Convert.ToString(resp.Result));
             }
 
-            return new List<EducationDto>();
+            return null;
         }
     }
 }
