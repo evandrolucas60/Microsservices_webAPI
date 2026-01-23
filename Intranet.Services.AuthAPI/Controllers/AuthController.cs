@@ -118,7 +118,7 @@ public class AuthController : ControllerBase
             {
                 new Claim(ClaimTypes.Name, user.UserName!),
                 new Claim(ClaimTypes.Email, user.Email!),
-                new Claim("id", user.UserName!),
+                new Claim("id", user.Id!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 
@@ -145,7 +145,7 @@ public class AuthController : ControllerBase
                     Token = new JwtSecurityTokenHandler().WriteToken(token),
                     RefreshToken = refreshToken,
                     Expiration = token.ValidTo,
-                    UserName = user.UserName,
+                    Id = user.Id,
                 });
         }
         return Unauthorized();
@@ -222,10 +222,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
-    [Route("revoke/{username}")]
-    public async Task<IActionResult> Revoke(string username)
+    [Route("revoke/{id}")]
+    public async Task<IActionResult> Revoke(string id)
     {
-        var user = await _userManager.FindByNameAsync(username);
+        var user = await _userManager.FindByIdAsync(id);
 
         if (user == null) return BadRequest("Invaild username");
 

@@ -10,6 +10,8 @@ public class Work
     public string Title { get; set; }
     public string Company { get; set; }
     public string Location { get; set; }
+    [Required]
+    [DisplayFormat(DataFormatString = "{0:dd-MM-yyyy}", ApplyFormatInEditMode = true)]
     public DateTime AdmissionDate { get; set; }
     public string Registration { get; set; }
     public string Description { get; set; }

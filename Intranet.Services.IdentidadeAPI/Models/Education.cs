@@ -9,8 +9,12 @@ public class Education
 
     public string School { get; set; }
     public string Degree { get; set; }
-    public string FromYear { get; set; }
-    public string ToYear { get; set; }
+    [Required]
+    [DisplayFormat(DataFormatString = "{0:dd-MM-yyyy}", ApplyFormatInEditMode = true)]
+    public DateTime FromYear { get; set; }
+    [Required]
+    [DisplayFormat(DataFormatString = "{0:dd-MM-yyyy}", ApplyFormatInEditMode = true)]
+    public DateTime ToYear { get; set; }
     public string Description { get; set; }
 
     public int ProfileId { get; set; }
