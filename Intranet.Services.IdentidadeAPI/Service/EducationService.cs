@@ -13,20 +13,52 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<EducationDto> GetEducationsByProfileId(int profileId)
+        public async Task<List<EducationDto>> GetEducationsByProfileId(int profileId)
         {
             var client = _httpClientFactory.CreateClient("Education");
-            var response = await client.GetAsync($"/api/Education/{profileId}");
+            var response = await client.GetAsync($"/api/Education/GetByProfile/{profileId}");
+
+            if (!response.IsSuccessStatusCode)
+                return new List<EducationDto>();
+
             var apiContent = await response.Content.ReadAsStringAsync();
 
             var resp = JsonConvert.DeserializeObject<ResponseDto>(apiContent);
 
-            if (resp != null && resp.IsSuccess)
+            if (resp != null && resp.IsSuccess && resp.Result != null)
             {
-                return JsonConvert.DeserializeObject<EducationDto>(Convert.ToString(resp.Result));
+                var json = Convert.ToString(resp.Result);
+                return JsonConvert.DeserializeObject<List<EducationDto>>(json) ?? new List<EducationDto>();
             }
 
-            return null;
+            return new List<EducationDto>();
+        }
+
+        public async Task<List<EducationDto>> UpsertEducationsAsync(int profileId, List<EducationDto> educationDto)
+        {
+            var client = _httpClientFactory.CreateClient("Education");
+
+            foreach (var edu in educationDto)
+                edu.ProfileId = profileId;
+
+            var jsonContent = new StringContent(
+                JsonConvert.SerializeObject(educationDto),
+                System.Text.Encoding.UTF8,
+                "application/json"
+             );
+
+            var response = await client.PostAsync($"api/Education/batch", content: jsonContent);
+            var apiContente = await response.Content.ReadAsStringAsync();
+
+            var resp = JsonConvert.DeserializeObject<ResponseDto>(apiContente);
+
+            if (resp != null && resp.IsSuccess)
+            {
+                return JsonConvert.DeserializeObject<List<EducationDto>>(
+                        Convert.ToString(resp.Result));
+            }
+            return new List<EducationDto>();
+
         }
     }
 }

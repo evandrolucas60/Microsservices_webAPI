@@ -74,6 +74,10 @@ public class UserController : ControllerBase
 
         try
         {
+            // =========================
+            // 1) MEMBER
+            // =========================
+
             var member = await _uof.MemberRepository
                 .GetAsync(m => m.UserId == userDto.Member.UserId);
 
@@ -81,14 +85,18 @@ public class UserController : ControllerBase
             {
                 member = _mapper.Map<Models.Member>(userDto.Member);
                 _uof.MemberRepository.Create(member);
+                await _uof.CommitAsync();
             }
             else
             {
                 _mapper.Map(userDto.Member, member);
                 _uof.MemberRepository.Update(member);
+                await _uof.CommitAsync();
             }
 
-            await _uof.CommitAsync();
+            // =========================
+            // 2) PROFILE
+            // =========================
 
             var profile = await _uof.ProfileRepository
                 .GetAsync(p => p.MemberId == member.MemberId);
@@ -98,32 +106,42 @@ public class UserController : ControllerBase
                 profile = _mapper.Map<UserProfile>(userDto.Profile);
                 profile.MemberId = member.MemberId;
                 _uof.ProfileRepository.Create(profile);
+                await _uof.CommitAsync();
             }
             else
             {
                 _mapper.Map(userDto.Profile, profile);
+                profile.MemberId = member.MemberId;
                 _uof.ProfileRepository.Update(profile);
+                await _uof.CommitAsync();
             }
 
-            await _uof.CommitAsync();
+            // =========================
+            // 3) WORK (1–1)
+            // =========================
+            if (userDto.Profile.Work != null)
+            {
+                await _workService.UpsertWorkAsync(
+                    member.MemberId,          
+                    userDto.Profile.Work
+                );
+            }
 
-            //if (userDto.Profile.Work != null)
-            //{
-            //    await _workService.UpsertWorkAsync(
-            //        member.MemberId,
-            //        userDto.Profile.Work
-            //    );
-            //}
+            // =========================
+            // 4) EDUCATIONS (1–N)
+            // =========================
+            if (userDto.Profile.Educations?.Any() == true)
+            {
+                await _educationService.UpsertEducationsAsync(
+                    profile.ProfileId,
+                    userDto.Profile.Educations
+                );
+            }
 
-            //if (userDto.Profile.Educations?.Any() == true)
-            //{
-            //    await _educationService.UpsertEducationsAsync(
-            //        profile.ProfileId,
-            //        userDto.Profile.Educations
-            //    );
-            //}
 
             response.Result = userDto;
+            response.IsSuccess = true;
+            response.Message = "Usuário salvo com sucesso";
         }
         catch (Exception ex)
         {

@@ -1,6 +1,7 @@
 ﻿using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace Intranet.Services.IdentidadeAPI.Repository;
@@ -39,5 +40,11 @@ public class Repository<T> : IRepository<T> where T : class
     {
         _context.Set<T>().Remove(Entity);
         return Entity;
-    }   
+    }
+
+    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _context.Set<T>().AsTracking().Where(predicate).ToListAsync();
+        
+    }
 }

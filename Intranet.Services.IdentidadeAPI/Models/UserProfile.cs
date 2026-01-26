@@ -19,7 +19,7 @@ public class UserProfile
 
 
     // 🔹 Relacionamento 1–N
-    public ICollection<Education> ProfileEducations { get; set; }
+    public ICollection<Education> ProfileEducations { get; set; } = new List<Education>();
 
 
     // 🔹 Dados do perfil

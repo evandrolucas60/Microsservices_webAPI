@@ -2,6 +2,7 @@
 
 public interface IUnityOfWork
 {
+    IAddressRepository AddressRepository { get; }
     IProfileRepository ProfileRepository { get; }
     IMemberRepository MemberRepository { get; }
     IUserRepository UserRepository { get; }

@@ -5,5 +5,6 @@ namespace Intranet.Services.IdentidadeAPI.Service.IService
     public interface IWorkService
     {
         Task<WorkDto> GetWorkByMemberId(int MemberId);
+        Task<WorkDto> UpsertWorkAsync (int MemberId, WorkDto workDto);
     }
 }

@@ -5,6 +5,7 @@ namespace Intranet.Services.IdentidadeAPI.Repository;
 
 public class UnityOfWork : IUnityOfWork
 {
+    private IAddressRepository _addressRepository;
     private IProfileRepository _profileRepository;
     private IMemberRepository _memberRepository;
     private IUserRepository _userRepository;
@@ -16,6 +17,15 @@ public class UnityOfWork : IUnityOfWork
     {
         _context = context;
     }
+
+    public IAddressRepository AddressRepository
+    {
+        get
+        {
+            return _addressRepository = _addressRepository ?? new AddressRepository(_context);
+        }
+    }
+
     public IProfileRepository ProfileRepository
     {
         get

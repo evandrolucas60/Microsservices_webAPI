@@ -18,4 +18,5 @@ public class Education
     public string Description { get; set; }
 
     public int ProfileId { get; set; }
+    public UserProfile Profile { get; set; }
 }

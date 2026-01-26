@@ -4,6 +4,7 @@ namespace Intranet.Services.IdentidadeAPI.Service.IService
 {
     public interface IEducationService
     {
-        Task<EducationDto> GetEducationsByProfileId(int profileId);
+        Task<List<EducationDto>> GetEducationsByProfileId(int profileId);
+        Task<List<EducationDto>> UpsertEducationsAsync(int profileId, List<EducationDto> educations);
     }
 }
