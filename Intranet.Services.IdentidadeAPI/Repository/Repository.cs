@@ -19,10 +19,40 @@ public class Repository<T> : IRepository<T> where T : class
         return await _context.Set<T>().AsNoTracking().ToListAsync();
     }
 
-    public async Task<T> GetAsync(Expression<Func<T, bool>> predicate)
+    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>> predicate)
     {
-        return await _context.Set<T>().AsTracking().FirstOrDefaultAsync(predicate);
+        return await _context.Set<T>().AsTracking().Where(predicate).ToListAsync();
+
     }
+
+    //public async Task<T> GetAsync(Expression<Func<T, bool>> predicate, 
+    //    string? includeProperties = null)
+    //{
+    //    return await _context.Set<T>().AsTracking().FirstOrDefaultAsync(predicate);
+    //}
+
+    public async Task<T?> GetAsync(
+     Expression<Func<T, bool>> predicate,
+     string? includeProperties = null
+ )
+    {
+        IQueryable<T> query = _context.Set<T>();
+
+        if (predicate != null)
+            query = query.Where(predicate);
+
+        if (!string.IsNullOrWhiteSpace(includeProperties))
+        {
+            foreach (var includeProp in includeProperties
+                         .Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProp.Trim());
+            }
+        }
+
+        return await query.AsTracking().FirstOrDefaultAsync();
+    }
+
 
     public T? Create(T Entity)
     {
@@ -42,9 +72,5 @@ public class Repository<T> : IRepository<T> where T : class
         return Entity;
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>> predicate)
-    {
-        return await _context.Set<T>().AsTracking().Where(predicate).ToListAsync();
-        
-    }
+  
 }

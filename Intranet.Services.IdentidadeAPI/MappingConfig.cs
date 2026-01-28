@@ -14,6 +14,7 @@ public class MappingConfig
             config.CreateMap<Member, MemberDto>().ReverseMap();
             config.CreateMap<UserProfile, UserProfileDto>().ReverseMap();
             config.CreateMap<Work, WorkDto>().ReverseMap();
+            config.CreateMap<Address, AddressDto>().ReverseMap();
         });
         return mappingConfig;
     }

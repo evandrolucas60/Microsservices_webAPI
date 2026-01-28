@@ -34,7 +34,7 @@ public class UserController : ControllerBase
     {
         try
         {
-            var member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId);
+            var member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId, includeProperties: "Address");
 
             if (member == null) return NotFound("Nenhum membro encontrado.");
 

@@ -12,4 +12,16 @@ public class AppDbContext : DbContext
     public DbSet<UserProfile> Profiles { get; set; }
     public DbSet<Work> Works { get; set; }
     public DbSet<Education> Educations { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Member>()
+            .HasOne(m => m.Address)
+            .WithOne()
+            .HasForeignKey<Address>(a => a.MemberId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
 }
+

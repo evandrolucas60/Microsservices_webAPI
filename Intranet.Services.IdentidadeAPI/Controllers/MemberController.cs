@@ -110,6 +110,45 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
+        [HttpPatch("UpdatePartial/{memberId:int}")]
+        public async Task<ActionResult> PatchMemberAsync(int memberId, [FromBody] MemberDto memberDto)
+        {
+            try
+            {
+                var member = await _uof.MemberRepository.GetAsync(
+                    m => m.MemberId == memberId,
+                    includeProperties: null
+                );
+
+                if (member == null)
+                    return NotFound("Membro não encontrado");
+
+                // 🔹 Patch parcial (somente campos enviados)
+                if (!string.IsNullOrWhiteSpace(memberDto.Name))
+                    member.Name = memberDto.Name;
+
+                if (!string.IsNullOrWhiteSpace(memberDto.Email))
+                    member.Email = memberDto.Email;
+
+                if (!string.IsNullOrWhiteSpace(memberDto.Phone))
+                    member.Phone = memberDto.Phone;
+
+                _uof.MemberRepository.Update(member);
+                await _uof.CommitAsync();
+
+                _response.Result = _mapper.Map<MemberDto>(member);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao aplicar PATCH no memberId {memberId}", memberId);
+                _response.IsSuccess = false;
+                _response.Message = ex.Message;
+            }
+
+            return Ok(_response);
+        }
+
+
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete(int id)
         {
