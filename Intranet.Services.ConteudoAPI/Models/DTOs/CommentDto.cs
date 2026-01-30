@@ -6,6 +6,7 @@ public class CommentDto
     public string Text { get; set; }
     public int TotalLikes { get; set; }
     public DateTime TimeStamp { get; set; }
-
     public int PostId { get; set; }
+    public int MemberId { get; set; }
 }
+

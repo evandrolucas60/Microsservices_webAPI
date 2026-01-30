@@ -8,7 +8,7 @@ public class PostDto
     public int MemberId { get; set; }
 
     // 🔹 Relacionamento 1–N
-    public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+    public List<CommentDto> Comments { get; set; } = new ();
 
     // 🔹 Dados
     public string Text { get; set; }

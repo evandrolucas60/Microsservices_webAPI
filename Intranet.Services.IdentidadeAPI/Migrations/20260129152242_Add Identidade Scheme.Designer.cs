@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Intranet.Services.IdentidadeAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260126181909_creating identidade scheme")]
-    partial class creatingidentidadescheme
+    [Migration("20260129152242_Add Identidade Scheme")]
+    partial class AddIdentidadeScheme
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -165,6 +165,10 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Company")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Department")
                         .IsRequired()
                         .HasColumnType("longtext");
 

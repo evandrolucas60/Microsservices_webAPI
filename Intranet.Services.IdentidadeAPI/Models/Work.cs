@@ -15,6 +15,7 @@ public class Work
     public DateTime AdmissionDate { get; set; }
     public string Registration { get; set; }
     public string Description { get; set; }
+    public string Department { get; set; }
 
     public int MemberId { get; set; }
 }

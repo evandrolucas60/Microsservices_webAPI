@@ -165,6 +165,10 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("longtext");

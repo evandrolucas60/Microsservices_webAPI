@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AutoMapper.Execution;
+using Intranet.Services.ConteudoAPI.Models.DTOs;
+using System.ComponentModel.DataAnnotations;
 
 namespace Intranet.Services.ConteudoAPI.Models;
 
@@ -13,8 +15,10 @@ public class Comment
     [DisplayFormat(DataFormatString = "{0:dd-MM-yyyy}", ApplyFormatInEditMode = true)]
     public DateTime TimeStamp { get; set; }
 
+    // 🔹 Relacionamento com Post
     public int PostId { get; set; }
     public Post Post { get; set; }
 
-    
+    // 🔹 Relacionamento com autor do comentário
+    public int MemberId { get; set; }
 }

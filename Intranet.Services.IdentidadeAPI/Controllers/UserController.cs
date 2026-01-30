@@ -67,6 +67,41 @@ public class UserController : ControllerBase
         return Ok(_response);
     }
 
+    [HttpGet("GetMemberInfo")]
+    public async Task<ActionResult> GetProfilebyMemberId(int memberId)
+    {
+        try
+        {
+            var member = await _uof.MemberRepository.GetAsync(m => m.MemberId == memberId, includeProperties: null);
+
+            if (member == null) return NotFound("Nenhum membro encontrado.");
+
+            var profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
+
+            if (profile == null) return NotFound("Profile não encontrado");
+
+            var work = await _workService.GetWorkByMemberId(member.MemberId);
+
+            var educations = await _educationService.GetEducationsByProfileId(profile.ProfileId);
+
+            UserDto user = new()
+            {
+                Member = _mapper.Map<MemberDto>(member),
+                Profile = _mapper.Map<UserProfileDto>(profile)
+            };
+
+            _response.Result = user;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar perfil do usuário");
+            _response.IsSuccess = false;
+            _response.Message = ex.Message;
+        }
+
+        return Ok(_response);
+    }
+
     [HttpPost("UserUpsert")]
     public async Task<ActionResult> UserUpsert([FromBody] UserDto userDto)
     {

@@ -12,11 +12,11 @@ namespace Intranet.Services.ConteudoAPI.Controllers;
 public class PostController : ControllerBase
 {
     private readonly IUnityOfWork _uof;
-    private readonly ILogger _logger;
+    private readonly ILogger<PostController> _logger;
     private ResponseDto _response;
     private IMapper _mapper;
 
-    public PostController(IUnityOfWork uof, ILogger logger, IMapper mapper)
+    public PostController(IUnityOfWork uof, ILogger<PostController> logger, IMapper mapper)
     {
         _uof = uof;
         _logger = logger;
@@ -63,7 +63,7 @@ public class PostController : ControllerBase
     }
 
     [HttpGet("GetPostbyMember/{id:int}")]
-    public async Task<ActionResult<Post>> GetByProfileAsync(int id)
+    public async Task<ActionResult<Post>> GetByMemberAsync(int id)
     {
         try
         {
@@ -82,6 +82,23 @@ public class PostController : ControllerBase
             _response.IsSuccess = false;
             _response.Message = ex.Message;
 
+        }
+        return Ok(_response);
+    }
+
+    [HttpGet("GetAllPostByMemberId/{id:int}")]
+    public async Task<ActionResult<Post>> GetByPostIdAsync(int id)
+    {
+        try
+        {
+            var list = await _uof.PostRepository.GetAllAsync(c => c.MemberId == id);
+            _response.Result = _mapper.Map<List<PostDto>>(list);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Nenhum dado foi encontrado");
+            _response.IsSuccess = false;
+            _response.Message = ex.Message;
         }
         return Ok(_response);
     }
@@ -161,7 +178,7 @@ public class PostController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao aplicar PATCH no memberId {memberId}", memberId);
+            _logger.LogError(ex, "Erro ao aplicar PATCH no memberId {memberId}", postId);
             _response.IsSuccess = false;
             _response.Message = ex.Message;
         }
