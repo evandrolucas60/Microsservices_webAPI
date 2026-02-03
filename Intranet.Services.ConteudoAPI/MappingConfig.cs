@@ -12,7 +12,10 @@ public class MappingConfig
         var mappingConfig = new MapperConfiguration(config =>
         {
             config.CreateMap<Comment, CommentDto>().ReverseMap();
+
             config.CreateMap<Post, PostDto>().ReverseMap();
+
+            config.CreateMap<Like, CreateLikeDto>();
         });
         return mappingConfig;
     }

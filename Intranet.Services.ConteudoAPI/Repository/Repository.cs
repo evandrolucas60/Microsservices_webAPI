@@ -47,6 +47,12 @@ public class Repository<T> : IRepository<T> where T : class
         return await query.AsTracking().FirstOrDefaultAsync();
     }
 
+    public async Task<int> CountAsync()
+        => await _context.Set<T>().CountAsync();
+
+    public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        => await _context.Set<T>().CountAsync(predicate);
+
 
     public T? Create(T Entity)
     {

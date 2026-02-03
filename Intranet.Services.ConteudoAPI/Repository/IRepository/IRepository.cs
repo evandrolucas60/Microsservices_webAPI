@@ -13,6 +13,9 @@ public interface IRepository<T>
     string? includeProperties = null
     );
 
+    Task<int> CountAsync();
+    Task<int> CountAsync(Expression<Func<T, bool>> predicate);
+
     T? Create(T Entity);
     T? Update(T Entity);
     T? Delete(T Entity);

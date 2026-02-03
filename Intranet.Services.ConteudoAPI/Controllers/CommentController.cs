@@ -2,9 +2,7 @@
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.Design;
 
 namespace Intranet.Services.ConteudoAPI.Controllers
 {
@@ -145,9 +143,6 @@ namespace Intranet.Services.ConteudoAPI.Controllers
                 // 🔹 Patch parcial (somente campos enviados)
                 if (!string.IsNullOrWhiteSpace(commentDto.Text))
                     comment.Text = commentDto.Text;
-
-                if (commentDto.TotalLikes != null)
-                    comment.TotalLikes = commentDto.TotalLikes;
 
                 _uof.CommentRepository.Update(comment);
                 await _uof.CommitAsync();

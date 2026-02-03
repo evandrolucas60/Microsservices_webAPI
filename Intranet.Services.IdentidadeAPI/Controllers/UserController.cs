@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using AutoMapper.Execution;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;

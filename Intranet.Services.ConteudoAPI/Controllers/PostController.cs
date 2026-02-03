@@ -2,7 +2,6 @@
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Intranet.Services.ConteudoAPI.Controllers;
@@ -63,7 +62,7 @@ public class PostController : ControllerBase
     }
 
     [HttpGet("GetPostbyMember/{id:int}")]
-    public async Task<ActionResult<Post>> GetByMemberAsync(int id)
+    public async Task<ActionResult<Post>> GetPostbyMember(int id)
     {
         try
         {
@@ -87,12 +86,20 @@ public class PostController : ControllerBase
     }
 
     [HttpGet("GetAllPostByMemberId/{id:int}")]
-    public async Task<ActionResult<Post>> GetByPostIdAsync(int id)
+    public async Task<ActionResult<Post>> GetAllPostByMemberId(int id)
     {
         try
         {
             var list = await _uof.PostRepository.GetAllAsync(c => c.MemberId == id);
-            _response.Result = _mapper.Map<List<PostDto>>(list);
+            var postsDto = _mapper.Map<List<PostDto>>(list);
+
+            foreach (var postDto in postsDto)
+            {
+                postDto.TotalLikes = await _uof.PostRepository.CountAsync(
+                    l => l.PostId == postDto.PostId
+                    );
+            }
+            _response.Result = postsDto;
         }
         catch (Exception ex)
         {
@@ -165,12 +172,6 @@ public class PostController : ControllerBase
             if (!string.IsNullOrWhiteSpace(postDto.Text))
                 post.Text = postDto.Text;
 
-            if (postDto.TotalLikes != null)
-                post.TotalLikes = postDto.TotalLikes;
-
-            if (postDto.TotalShares != null)
-                post.TotalShares = postDto.TotalShares;
-
             _uof.PostRepository.Update(post);
             await _uof.CommitAsync();
 
@@ -185,6 +186,57 @@ public class PostController : ControllerBase
 
         return Ok(_response);
     }
+
+    [HttpPatch("ToggleLikeAsync/{postId:int}")]
+    public async Task<ActionResult> ToggleLikeAsync(
+    int postId,
+    [FromBody] CreateLikeDto dto)
+    {
+        try
+        {
+            var existingLike = await _uof.LikeRepository.GetAsync(
+                l => l.PostId == postId && l.MemberId == dto.MemberId
+            );
+
+            if (existingLike == null)
+            {
+                _uof.LikeRepository.Create(new Like
+                {
+                    PostId = postId,
+                    MemberId = dto.MemberId
+                });
+            }
+            else
+            {
+                _uof.LikeRepository.Delete(existingLike);
+            }
+
+            await _uof.CommitAsync();
+
+            var totalLikes = await _uof.LikeRepository.CountAsync(
+                l => l.PostId == postId
+            );
+
+            var post = await _uof.PostRepository.GetAsync(
+                p => p.PostId == postId
+            );
+
+            if (post == null)
+                return NotFound();
+
+            var postDto = _mapper.Map<PostDto>(post);
+            postDto.TotalLikes = totalLikes;
+
+            return Ok(postDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao curtir post {PostId}", postId);
+            return StatusCode(500, "Erro interno ao processar like.");
+        }
+    }
+
+
 
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)

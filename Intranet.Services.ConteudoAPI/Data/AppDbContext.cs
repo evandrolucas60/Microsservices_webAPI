@@ -9,6 +9,6 @@ public class AppDbContext : DbContext
 
     public DbSet<Comment> comments { get; set; }
     public DbSet<Post> posts { get; set; }
-   
+    public DbSet<Like> likes { get; set; }
 }
 

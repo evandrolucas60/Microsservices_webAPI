@@ -7,11 +7,20 @@ public class UnityOfWork : IUnityOfWork
 {
     private IPostRepository _postRepository ;
     private ICommentRepository _commentRepository;
+    private ILikeRepository _likeRepository;
     public AppDbContext _context;
 
     public UnityOfWork(AppDbContext context)
     {
         _context = context;
+    }
+
+    public ILikeRepository LikeRepository
+    {
+        get
+        {
+            return _likeRepository = _likeRepository ?? new LikeRepository(_context);
+        }
     }
 
     public IPostRepository PostRepository
