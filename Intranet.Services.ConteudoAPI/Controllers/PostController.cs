@@ -86,27 +86,20 @@ public class PostController : ControllerBase
     }
 
     [HttpGet("GetAllPostByMemberId/{id:int}")]
-    public async Task<ActionResult<Post>> GetAllPostByMemberId(int id)
+    public async Task<ActionResult<List<PostDto>>> GetAllPostByMemberIdAsync(int id)
     {
         try
         {
-            var list = await _uof.PostRepository.GetAllAsync(c => c.MemberId == id);
-            var postsDto = _mapper.Map<List<PostDto>>(list);
-
-            foreach (var postDto in postsDto)
-            {
-                postDto.TotalLikes = await _uof.PostRepository.CountAsync(
-                    l => l.PostId == postDto.PostId
-                    );
-            }
-            _response.Result = postsDto;
+            var posts = await _uof.PostRepository.GetAllByMemberIdWithLikesAsync(id);
+            _response.Result = posts;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning("Nenhum dado foi encontrado");
+            _logger.LogError(ex, "Erro ao buscar posts do membro {MemberId}", id);
             _response.IsSuccess = false;
-            _response.Message = ex.Message;
+            _response.Message = "Erro ao buscar posts.";
         }
+
         return Ok(_response);
     }
 
