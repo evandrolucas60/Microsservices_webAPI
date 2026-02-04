@@ -7,7 +7,8 @@ public class UnityOfWork : IUnityOfWork
 {
     private IPostRepository _postRepository ;
     private ICommentRepository _commentRepository;
-    private ILikeRepository _likeRepository;
+    private IPostLikeRepository _postLikeRepository;
+    private ICommentLikeRepository _commentLikeRepository;
     public AppDbContext _context;
 
     public UnityOfWork(AppDbContext context)
@@ -15,11 +16,19 @@ public class UnityOfWork : IUnityOfWork
         _context = context;
     }
 
-    public ILikeRepository LikeRepository
+    public ICommentLikeRepository CommentLikeRepository
     {
         get
         {
-            return _likeRepository = _likeRepository ?? new LikeRepository(_context);
+            return _commentLikeRepository = _commentLikeRepository ?? new CommentLikeRepository(_context);
+        }
+    }
+
+    public IPostLikeRepository PostLikeRepository
+    {
+        get
+        {
+            return _postLikeRepository = _postLikeRepository ?? new PostLikeRepository(_context);
         }
     }
 
@@ -38,7 +47,6 @@ public class UnityOfWork : IUnityOfWork
             return _commentRepository = _commentRepository ?? new CommentRepository(_context);
         }
     }
-
 
     public async Task CommitAsync()
     {

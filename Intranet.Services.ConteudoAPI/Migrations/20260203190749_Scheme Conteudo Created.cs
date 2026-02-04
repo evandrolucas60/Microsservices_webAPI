@@ -16,6 +16,24 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "comments",
+                columns: table => new
+                {
+                    CommentId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    PostId = table.Column<int>(type: "int", nullable: false),
+                    MemberId = table.Column<int>(type: "int", nullable: false),
+                    Text = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_comments", x => x.CommentId);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "posts",
                 columns: table => new
                 {
@@ -33,34 +51,32 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "comments",
+                name: "commentLikes",
                 columns: table => new
                 {
-                    CommentId = table.Column<int>(type: "int", nullable: false)
+                    CommentLikeId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Text = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    PostId = table.Column<int>(type: "int", nullable: false),
+                    CommentId = table.Column<int>(type: "int", nullable: false),
                     MemberId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_comments", x => x.CommentId);
+                    table.PrimaryKey("PK_commentLikes", x => x.CommentLikeId);
                     table.ForeignKey(
-                        name: "FK_comments_posts_PostId",
-                        column: x => x.PostId,
-                        principalTable: "posts",
-                        principalColumn: "PostId",
+                        name: "FK_commentLikes_comments_CommentId",
+                        column: x => x.CommentId,
+                        principalTable: "comments",
+                        principalColumn: "CommentId",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "likes",
+                name: "postLikes",
                 columns: table => new
                 {
-                    LikeId = table.Column<int>(type: "int", nullable: false)
+                    PostLikeId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     PostId = table.Column<int>(type: "int", nullable: false),
@@ -68,9 +84,9 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_likes", x => x.LikeId);
+                    table.PrimaryKey("PK_postLikes", x => x.PostLikeId);
                     table.ForeignKey(
-                        name: "FK_likes_posts_PostId",
+                        name: "FK_postLikes_posts_PostId",
                         column: x => x.PostId,
                         principalTable: "posts",
                         principalColumn: "PostId",
@@ -79,13 +95,13 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_comments_PostId",
-                table: "comments",
-                column: "PostId");
+                name: "IX_commentLikes_CommentId",
+                table: "commentLikes",
+                column: "CommentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_likes_PostId",
-                table: "likes",
+                name: "IX_postLikes_PostId",
+                table: "postLikes",
                 column: "PostId");
         }
 
@@ -93,10 +109,13 @@ namespace Intranet.Services.ConteudoAPI.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "comments");
+                name: "commentLikes");
 
             migrationBuilder.DropTable(
-                name: "likes");
+                name: "postLikes");
+
+            migrationBuilder.DropTable(
+                name: "comments");
 
             migrationBuilder.DropTable(
                 name: "posts");

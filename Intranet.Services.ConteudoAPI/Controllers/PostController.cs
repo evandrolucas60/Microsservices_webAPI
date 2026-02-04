@@ -187,13 +187,13 @@ public class PostController : ControllerBase
     {
         try
         {
-            var existingLike = await _uof.LikeRepository.GetAsync(
+            var existingLike = await _uof.PostLikeRepository.GetAsync(
                 l => l.PostId == postId && l.MemberId == dto.MemberId
             );
 
             if (existingLike == null)
             {
-                _uof.LikeRepository.Create(new Like
+                _uof.PostLikeRepository.Create(new PostLike
                 {
                     PostId = postId,
                     MemberId = dto.MemberId
@@ -201,12 +201,12 @@ public class PostController : ControllerBase
             }
             else
             {
-                _uof.LikeRepository.Delete(existingLike);
+                _uof.PostLikeRepository.Delete(existingLike);
             }
 
             await _uof.CommitAsync();
 
-            var totalLikes = await _uof.LikeRepository.CountAsync(
+            var totalLikes = await _uof.PostLikeRepository.CountAsync(
                 l => l.PostId == postId
             );
 

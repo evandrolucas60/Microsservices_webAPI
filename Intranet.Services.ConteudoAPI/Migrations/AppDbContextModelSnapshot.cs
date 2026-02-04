@@ -45,18 +45,19 @@ namespace Intranet.Services.ConteudoAPI.Migrations
 
                     b.HasKey("CommentId");
 
-                    b.HasIndex("PostId");
-
                     b.ToTable("comments");
                 });
 
-            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Like", b =>
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.CommentLike", b =>
                 {
-                    b.Property<int>("LikeId")
+                    b.Property<int>("CommentLikeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LikeId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("CommentLikeId"));
+
+                    b.Property<int>("CommentId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
@@ -64,14 +65,11 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<int>("MemberId")
                         .HasColumnType("int");
 
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
+                    b.HasKey("CommentLikeId");
 
-                    b.HasKey("LikeId");
+                    b.HasIndex("CommentId");
 
-                    b.HasIndex("PostId");
-
-                    b.ToTable("likes");
+                    b.ToTable("commentLikes");
                 });
 
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Post", b =>
@@ -97,18 +95,42 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.ToTable("posts");
                 });
 
-            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Comment", b =>
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.PostLike", b =>
                 {
-                    b.HasOne("Intranet.Services.ConteudoAPI.Models.Post", "Post")
-                        .WithMany()
-                        .HasForeignKey("PostId")
+                    b.Property<int>("PostLikeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PostLikeId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PostLikeId");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("postLikes");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.CommentLike", b =>
+                {
+                    b.HasOne("Intranet.Services.ConteudoAPI.Models.Comment", "Comment")
+                        .WithMany("Likes")
+                        .HasForeignKey("CommentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Post");
+                    b.Navigation("Comment");
                 });
 
-            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Like", b =>
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.PostLike", b =>
                 {
                     b.HasOne("Intranet.Services.ConteudoAPI.Models.Post", "Post")
                         .WithMany("Likes")
@@ -117,6 +139,11 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Comment", b =>
+                {
+                    b.Navigation("Likes");
                 });
 
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Post", b =>

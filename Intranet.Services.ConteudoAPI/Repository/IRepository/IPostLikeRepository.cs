@@ -2,7 +2,7 @@
 
 namespace Intranet.Services.ConteudoAPI.Repository.IRepository
 {
-    public interface ILikeRepository : IRepository<Like>
+    public interface IPostLikeRepository : IRepository<PostLike>
     {
     }
 }

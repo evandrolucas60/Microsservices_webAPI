@@ -4,7 +4,8 @@ public interface IUnityOfWork
 {
     IPostRepository PostRepository { get; }
     ICommentRepository CommentRepository { get; }
-    ILikeRepository LikeRepository { get; }
+    IPostLikeRepository PostLikeRepository { get; }
+    ICommentLikeRepository CommentLikeRepository { get; }
 
     Task CommitAsync();
 }

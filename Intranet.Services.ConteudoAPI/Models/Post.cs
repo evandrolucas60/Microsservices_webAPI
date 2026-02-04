@@ -8,5 +8,5 @@ public class Post
     public int MemberId { get; set; }
     public string Text { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public ICollection<Like> Likes { get; set; } = new List<Like>();
+    public ICollection<PostLike> Likes { get; set; } = new List<PostLike>();
 }

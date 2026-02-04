@@ -15,7 +15,8 @@ public class MappingConfig
 
             config.CreateMap<Post, PostDto>().ReverseMap();
 
-            config.CreateMap<Like, CreateLikeDto>();
+            config.CreateMap<PostLike, CreateLikeDto>();
+            config.CreateMap<CommentLike, CreateLikeDto>();
         });
         return mappingConfig;
     }

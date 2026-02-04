@@ -102,6 +102,24 @@ namespace Intranet.Services.ConteudoAPI.Controllers
             return Ok(_response);
         }
 
+        [HttpGet("GetAllCommentByMemberId/{postId:int}")]
+        public async Task<ActionResult<List<CommentDto>>> GetAllCommentByMemberId(int postId)
+        {
+            try
+            {
+                var comments = await _uof.CommentRepository.GetAllByMemberIdWithLikesAsync(postId);
+                _response.Result = comments;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar posts do membro {MemberId}", postId);
+                _response.IsSuccess = false;
+                _response.Message = "Erro ao buscar posts.";
+            }
+
+            return Ok(_response);
+        }
+
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Put(int id, CommentDto commentDto)
         {
@@ -157,6 +175,55 @@ namespace Intranet.Services.ConteudoAPI.Controllers
             }
 
             return Ok(_response);
+        }
+
+        [HttpPatch("ToggleLikeAsync/{commentId:int}")]
+        public async Task<ActionResult> ToggleLikeAsync(
+            int commentId,
+            [FromBody] CreateLikeDto dto)
+        {
+            try
+            {
+                var comment = await _uof.CommentRepository.GetAsync(
+                    c => c.CommentId == commentId
+                );
+
+                if (comment == null)
+                    return NotFound("Comentário não encontrado.");
+
+                var existingLike = await _uof.CommentLikeRepository.GetAsync(
+                    l => l.CommentId == commentId && l.MemberId == dto.MemberId
+                );
+
+                if (existingLike == null)
+                {
+                    _uof.CommentLikeRepository.Create(new CommentLike
+                    {
+                        CommentId = commentId,
+                        MemberId = dto.MemberId
+                    });
+                }
+                else
+                {
+                    _uof.CommentLikeRepository.Delete(existingLike);
+                }
+
+                await _uof.CommitAsync();
+
+                var totalLikes = await _uof.CommentLikeRepository.CountAsync(
+                    l => l.CommentId == commentId
+                );
+
+                var commentDto = _mapper.Map<CommentDto>(comment);
+                commentDto.TotalLikes = totalLikes;
+
+                return Ok(commentDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao curtir comentário {CommentId}", commentId);
+                return StatusCode(500, "Erro interno ao processar like.");
+            }
         }
 
         [HttpDelete("{id:int}")]
