@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Intranet.Services.ConteudoAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class SchemeConteudoCreated : Migration
+    public partial class CreateScheme : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -22,8 +22,8 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     CommentId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     PostId = table.Column<int>(type: "int", nullable: false),
-                    MemberId = table.Column<int>(type: "int", nullable: false),
-                    Text = table.Column<string>(type: "longtext", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Text = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
@@ -39,8 +39,8 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                 {
                     PostId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    MemberId = table.Column<int>(type: "int", nullable: false),
-                    Text = table.Column<string>(type: "longtext", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Text = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
@@ -58,7 +58,7 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     CommentId = table.Column<int>(type: "int", nullable: false),
-                    MemberId = table.Column<int>(type: "int", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {
@@ -80,7 +80,7 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     PostId = table.Column<int>(type: "int", nullable: false),
-                    MemberId = table.Column<int>(type: "int", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {

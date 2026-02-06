@@ -41,12 +41,12 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<Member>> GetAsync(int id)
+        [HttpGet("{memberId:Guid}")]
+        public async Task<ActionResult<Member>> GetAsync(Guid memberId)
         {
             try
             {
-                var obj = await _uof.MemberRepository.GetAsync(c => c.MemberId == id);
+                var obj = await _uof.MemberRepository.GetAsync(c => c.MemberId == memberId);
                 _response.Result = _mapper.Map<MemberDto>(obj);
 
                 if (obj is null)
@@ -85,8 +85,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpPut("{id:int}")]
-        public async Task<ActionResult> Put(int id, MemberDto memberDto)
+        [HttpPut("{menberId:Guid}")]
+        public async Task<ActionResult> Put(Guid menberId, MemberDto memberDto)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                 _uof.MemberRepository.Update(obj);
                 await _uof.CommitAsync();
 
-                if (id != obj.MemberId)
+                if (menberId != obj.MemberId)
                 {
                     _logger.LogWarning("Dados inválidos");
                     return BadRequest("Dados inválidos");
@@ -110,8 +110,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpPatch("UpdatePartial/{memberId:int}")]
-        public async Task<ActionResult> PatchMemberAsync(int memberId, [FromBody] MemberDto memberDto)
+        [HttpPatch("UpdatePartial/{memberId:Guid}")]
+        public async Task<ActionResult> PatchMemberAsync(Guid memberId, [FromBody] MemberDto memberDto)
         {
             try
             {
@@ -149,12 +149,12 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         }
 
 
-        [HttpDelete("{id:int}")]
-        public async Task<ActionResult> Delete(int id)
+        [HttpDelete("{memberId:Guid}")]
+        public async Task<ActionResult> Delete(Guid memberId)
         {
             try
             {
-                Member obj = await _uof.MemberRepository.GetAsync(c => c.MemberId == id);
+                Member obj = await _uof.MemberRepository.GetAsync(c => c.MemberId == memberId);
 
 
                 if (obj is null)

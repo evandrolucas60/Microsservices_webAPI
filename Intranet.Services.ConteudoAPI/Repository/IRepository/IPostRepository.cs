@@ -5,5 +5,5 @@ namespace Intranet.Services.ConteudoAPI.Repository.IRepository;
 
 public interface IPostRepository : IRepository<Post>
 {
-    Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(int memberId);
+    Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(Guid memberId);
 }

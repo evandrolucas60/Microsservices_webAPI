@@ -8,8 +8,8 @@ public class Comment
 {
     public int CommentId { get; set; }
     public int PostId { get; set; }
-    public int MemberId { get; set; }
-    public string Text { get; set; }
+    public Guid MemberId { get; set; }
+    public string? Text { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<CommentLike> Likes { get; set; } = new List<CommentLike>();
 }

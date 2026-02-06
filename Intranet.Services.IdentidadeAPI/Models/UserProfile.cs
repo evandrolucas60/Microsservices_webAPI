@@ -5,11 +5,11 @@ namespace Intranet.Services.IdentidadeAPI.Models;
 public class UserProfile
 {
     [Key]
-    public int ProfileId { get; set; }
+    public Guid ProfileId { get; set; } = Guid.NewGuid();
 
 
     // 🔹 Relacionamento 1–1
-    public int MemberId { get; set; }
+    public Guid MemberId { get; set; }
 
 
     // 🔹 Relacionamento 1–1
@@ -17,7 +17,7 @@ public class UserProfile
 
 
     // 🔹 Relacionamento 1–N
-    public ICollection<Education> ProfileEducations { get; set; } = new List<Education>();
+    public ICollection<Education> ProfileEducations { get; set; }
 
 
     // 🔹 Dados do perfil

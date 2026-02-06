@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Intranet.Services.IdentidadeAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdentidadeScheme : Migration
+    public partial class CreateScheme : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,8 +19,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                 name: "Members",
                 columns: table => new
                 {
-                    MemberId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     UserId = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     dateOfMembership = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -56,7 +55,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Department = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    MemberId = table.Column<int>(type: "int", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {
@@ -80,7 +79,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Country = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    MemberId = table.Column<int>(type: "int", nullable: false)
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {
@@ -98,9 +97,8 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                 name: "Profiles",
                 columns: table => new
                 {
-                    ProfileId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    MemberId = table.Column<int>(type: "int", nullable: false),
+                    ProfileId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    MemberId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     WorkId = table.Column<int>(type: "int", nullable: false),
                     ProfilePicture = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -135,7 +133,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     ToYear = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Description = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ProfileId = table.Column<int>(type: "int", nullable: false)
+                    ProfileId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {

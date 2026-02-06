@@ -61,12 +61,12 @@ public class PostController : ControllerBase
         return Ok(_response);
     }
 
-    [HttpGet("GetPostbyMember/{id:int}")]
-    public async Task<ActionResult<Post>> GetPostbyMember(int id)
+    [HttpGet("GetPostbyMember/{memberId:Guid}")]
+    public async Task<ActionResult<Post>> GetPostbyMember(Guid memberId)
     {
         try
         {
-            var obj = await _uof.PostRepository.GetAsync(c => c.MemberId == id);
+            var obj = await _uof.PostRepository.GetAsync(c => c.MemberId == memberId);
             _response.Result = _mapper.Map<PostDto>(obj);
 
             if (obj is null)
@@ -85,17 +85,17 @@ public class PostController : ControllerBase
         return Ok(_response);
     }
 
-    [HttpGet("GetAllPostByMemberId/{id:int}")]
-    public async Task<ActionResult<List<PostDto>>> GetAllPostByMemberIdAsync(int id)
+    [HttpGet("GetAllPostByMemberId/{memberId:Guid}")]
+    public async Task<ActionResult<List<PostDto>>> GetAllPostByMemberIdAsync(Guid memberId)
     {
         try
         {
-            var posts = await _uof.PostRepository.GetAllByMemberIdWithLikesAsync(id);
+            var posts = await _uof.PostRepository.GetAllByMemberIdWithLikesAsync(memberId);
             _response.Result = posts;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao buscar posts do membro {MemberId}", id);
+            _logger.LogError(ex, "Erro ao buscar posts do membro {MemberId}", memberId);
             _response.IsSuccess = false;
             _response.Message = "Erro ao buscar posts.";
         }
@@ -225,6 +225,7 @@ public class PostController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao curtir post {PostId}", postId);
+            Console.WriteLine(ex);
             return StatusCode(500, "Erro interno ao processar like.");
         }
     }

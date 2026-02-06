@@ -5,8 +5,8 @@ namespace Intranet.Services.IdentidadeAPI.Models.DTOs;
 
 public class UserProfileDto
 {
-    public int ProfileId { get; set; }
-    public int MemberId { get; set; }
+    public Guid? ProfileId { get; set; }
+    public Guid? MemberId { get; set; }
 
     public WorkDto? Work { get; set; }
     public List<EducationDto> Educations { get; set; } = new();

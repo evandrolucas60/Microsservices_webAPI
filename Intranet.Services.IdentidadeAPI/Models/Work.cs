@@ -17,5 +17,5 @@ public class Work
     public string Description { get; set; }
     public string Department { get; set; }
 
-    public int MemberId { get; set; }
+    public Guid MemberId { get; set; }
 }

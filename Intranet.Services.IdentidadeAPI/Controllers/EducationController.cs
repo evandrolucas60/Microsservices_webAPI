@@ -64,12 +64,12 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("GetByProfile/{id:int}")]
-        public async Task<ActionResult<Education>> GetByProfileAsync(int id)
+        [HttpGet("GetByProfile/{profileId:Guid}")]
+        public async Task<ActionResult<Education>> GetByProfileAsync(Guid profileId)
         {
             try
             {
-                var list = await _uof.EducationRepository.GetAllAsync(c => c.ProfileId == id);
+                var list = await _uof.EducationRepository.GetAllAsync(c => c.ProfileId == profileId);
                 _response.Result = _mapper.Map<List<EducationDto>>(list);
             }
             catch (Exception ex)
@@ -90,7 +90,7 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                 if (educationsDto == null || !educationsDto.Any())
                     return BadRequest("Lista de educações vazia.");
 
-                if (educationsDto.Any(e => e.ProfileId <= 0))
+                if (educationsDto.Any(e => e.ProfileId == Guid.Empty))
                     return BadRequest("Todas as educações devem possuir ProfileId válido.");
 
                 var result = new List<EducationDto>();
@@ -127,9 +127,9 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpPut("profile/{profileId:int}")]
+        [HttpPut("profile/{profileId:Guid}")]
         public async Task<ActionResult> UpdateByProfile(
-            int profileId,
+            Guid profileId,
             [FromBody] List<EducationDto> educationsDto)
         {
             try
@@ -209,8 +209,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         }
 
 
-        [HttpPatch("profile/{profileId:int}")]
-        public async Task<ActionResult> PatchEducationsByProfile( int profileId, [FromBody] List<EducationPatchByProfileDto> patchList)
+        [HttpPatch("profile/{profileId:Guid}")]
+        public async Task<ActionResult> PatchEducationsByProfile( Guid profileId, [FromBody] List<EducationPatchByProfileDto> patchList)
         {
             try
             {

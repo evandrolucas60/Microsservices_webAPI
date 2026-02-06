@@ -10,5 +10,5 @@ public class EducationDto
     public DateTime ToYear { get; set; }
     public string Description { get; set; }
 
-    public int ProfileId { get; set; }
+    public Guid ProfileId { get; set; }
 }

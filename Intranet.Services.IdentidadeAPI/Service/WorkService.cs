@@ -14,10 +14,10 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<WorkDto> GetWorkByMemberId(int MemberId)
+        public async Task<WorkDto> GetWorkByMemberId(Guid MemberId)
         {
             var client = _httpClientFactory.CreateClient("Work");
-            var response = await client.GetAsync($"api/Work/{MemberId}");
+            var response = await client.GetAsync($"api/Work/GetworkbyMember/{MemberId}");
             var apiContente = await response.Content.ReadAsStringAsync();
 
             var resp = JsonConvert.DeserializeObject<ResponseDto>(apiContente);
@@ -29,7 +29,7 @@ namespace Intranet.Services.IdentidadeAPI.Service
             return new WorkDto();
         }
 
-        public async Task<WorkDto> UpsertWorkAsync(int memberId, WorkDto workDto)
+        public async Task<WorkDto> UpsertWorkAsync(Guid memberId, WorkDto workDto)
         {
             workDto.MemberId = memberId;
 

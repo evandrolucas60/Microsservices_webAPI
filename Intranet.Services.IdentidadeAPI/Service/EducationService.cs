@@ -1,6 +1,7 @@
 ﻿using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Service.IService;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Intranet.Services.IdentidadeAPI.Service
 {
@@ -13,7 +14,7 @@ namespace Intranet.Services.IdentidadeAPI.Service
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<List<EducationDto>> GetEducationsByProfileId(int profileId)
+        public async Task<List<EducationDto>> GetEducationsByProfileId(Guid profileId)
         {
             var client = _httpClientFactory.CreateClient("Education");
             var response = await client.GetAsync($"/api/Education/GetByProfile/{profileId}");
@@ -27,14 +28,20 @@ namespace Intranet.Services.IdentidadeAPI.Service
 
             if (resp != null && resp.IsSuccess && resp.Result != null)
             {
-                var json = Convert.ToString(resp.Result);
-                return JsonConvert.DeserializeObject<List<EducationDto>>(json) ?? new List<EducationDto>();
+                var jArray = resp.Result as JArray;
+
+                if (jArray != null)
+                    return jArray.ToObject<List<EducationDto>>();
+
+                return JsonConvert.DeserializeObject<List<EducationDto>>(
+                    resp.Result.ToString()
+                ) ?? new List<EducationDto>();
             }
 
             return new List<EducationDto>();
         }
 
-        public async Task<List<EducationDto>> UpsertEducationsAsync(int profileId, List<EducationDto> educationDto)
+        public async Task<List<EducationDto>> UpsertEducationsAsync(Guid profileId, List<EducationDto> educationDto)
         {
             var client = _httpClientFactory.CreateClient("Education");
 

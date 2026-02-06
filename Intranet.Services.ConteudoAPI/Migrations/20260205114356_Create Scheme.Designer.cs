@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Intranet.Services.ConteudoAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260203190749_Scheme Conteudo Created")]
-    partial class SchemeConteudoCreated
+    [Migration("20260205114356_Create Scheme")]
+    partial class CreateScheme
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -36,14 +36,13 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<int>("PostId")
                         .HasColumnType("int");
 
                     b.Property<string>("Text")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("CommentId");
@@ -65,8 +64,8 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("CommentLikeId");
 
@@ -86,11 +85,10 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("Text")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("PostId");
@@ -109,8 +107,8 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<int>("PostId")
                         .HasColumnType("int");

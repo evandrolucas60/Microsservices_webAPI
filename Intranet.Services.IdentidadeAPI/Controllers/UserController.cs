@@ -67,7 +67,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("GetMemberInfo")]
-    public async Task<ActionResult> GetProfilebyMemberId(int memberId)
+    public async Task<ActionResult> GetProfilebyMemberId(Guid memberId)
     {
         try
         {
@@ -118,6 +118,9 @@ public class UserController : ControllerBase
             if (member == null)
             {
                 member = _mapper.Map<Models.Member>(userDto.Member);
+                member.MemberId = Guid.NewGuid();
+                member.dateOfMembership = DateTime.UtcNow;
+
                 _uof.MemberRepository.Create(member);
                 await _uof.CommitAsync();
             }
@@ -139,6 +142,7 @@ public class UserController : ControllerBase
             {
                 profile = _mapper.Map<UserProfile>(userDto.Profile);
                 profile.MemberId = member.MemberId;
+                profile.ProfileId = Guid.NewGuid();
                 _uof.ProfileRepository.Create(profile);
                 await _uof.CommitAsync();
             }

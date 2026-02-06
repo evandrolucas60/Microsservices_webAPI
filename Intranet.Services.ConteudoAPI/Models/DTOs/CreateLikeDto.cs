@@ -2,6 +2,6 @@
 {
     public class CreateLikeDto
     {
-        public int MemberId { get; set; }
+        public Guid MemberId { get; set; }
     }
 }

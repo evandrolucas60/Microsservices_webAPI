@@ -58,12 +58,12 @@ namespace Intranet.Services.ConteudoAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("GetPostbyMember/{id:int}")]
-        public async Task<ActionResult<Comment>> GetByMemberAsync(int id)
+        [HttpGet("GetPostbyMember/{memberId:Guid}")]
+        public async Task<ActionResult<Comment>> GetByMemberAsync(Guid memberId)
         {
             try
             {
-                var obj = await _uof.CommentRepository.GetAsync(c => c.MemberId == id);
+                var obj = await _uof.CommentRepository.GetAsync(c => c.MemberId == memberId);
                 _response.Result = _mapper.Map<CommentDto>(obj);
 
                 if (obj is null)

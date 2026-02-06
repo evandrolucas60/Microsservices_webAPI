@@ -3,8 +3,8 @@
 public class PostDto
 {
     public int PostId { get; set; }
-    public int MemberId { get; set; }
-    public string Text { get; set; }
+    public Guid MemberId { get; set; }
+    public string? Text { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int TotalLikes { get; set; }
 }

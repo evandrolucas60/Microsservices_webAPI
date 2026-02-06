@@ -64,12 +64,12 @@ public class WorkController : ControllerBase
         return Ok(_response);
     }
 
-    [HttpGet("GetworkbyMember/{id:int}")]
-    public async Task<ActionResult<Work>> GetByProfileAsync(int id)
+    [HttpGet("GetworkbyMember/{memberId:Guid}")]
+    public async Task<ActionResult<Work>> GetByProfileAsync(Guid memberId)
     {
         try
         {
-            var obj = await _uof.WorkRepository.GetAsync(c => c.MemberId == id);
+            var obj = await _uof.WorkRepository.GetAsync(c => c.MemberId == memberId);
             _response.Result = _mapper.Map<WorkDto>(obj);
 
             if (obj is null)
@@ -94,7 +94,7 @@ public class WorkController : ControllerBase
         try
         {
             Work obj = _mapper.Map<Work>(workDto);
-            var categoriaCriada = _uof.WorkRepository.Create(obj);
+            var work = _uof.WorkRepository.Create(obj);
             await _uof.CommitAsync();
 
             _response.Result = _mapper.Map<WorkDto>(obj);

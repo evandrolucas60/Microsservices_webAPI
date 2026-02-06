@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Intranet.Services.IdentidadeAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260129152242_Add Identidade Scheme")]
-    partial class AddIdentidadeScheme
+    [Migration("20260204193432_Create Scheme")]
+    partial class CreateScheme
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,8 +39,8 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.Property<string>("Country")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("State")
                         .HasColumnType("longtext");
@@ -78,8 +78,8 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.Property<DateTime>("FromYear")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("ProfileId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("School")
                         .IsRequired()
@@ -97,11 +97,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
 
             modelBuilder.Entity("Intranet.Services.IdentidadeAPI.Models.Member", b =>
                 {
-                    b.Property<int>("MemberId")
+                    b.Property<Guid>("MemberId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MemberId"));
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("Email")
                         .HasColumnType("longtext");
@@ -125,11 +123,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
 
             modelBuilder.Entity("Intranet.Services.IdentidadeAPI.Models.UserProfile", b =>
                 {
-                    b.Property<int>("ProfileId")
+                    b.Property<Guid>("ProfileId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ProfileId"));
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("CoverPhoto")
                         .HasColumnType("longtext");
@@ -137,8 +133,8 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.Property<string>("Gender")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("ProfilePicture")
                         .HasColumnType("longtext");
@@ -180,8 +176,8 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int>("MemberId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("Registration")
                         .IsRequired()

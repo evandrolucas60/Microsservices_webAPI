@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using AutoMapper.Execution;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
@@ -64,12 +65,12 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("GetAddressbyMember/{id:int}")]
-        public async Task<ActionResult<Address>> GetByProfileAsync(int id)
+        [HttpGet("GetAddressbyMember/{memberId:Guid}")]
+        public async Task<ActionResult<Address>> GetByProfileAsync(Guid memberId)
         {
             try
             {
-                var obj = await _uof.AddressRepository.GetAsync(c => c.MemberId == id);
+                var obj = await _uof.AddressRepository.GetAsync(c => c.MemberId == memberId);
                 _response.Result = _mapper.Map<AddressDto>(obj);
 
                 if (obj is null)

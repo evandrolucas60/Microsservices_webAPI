@@ -10,7 +10,7 @@ public class PostRepository : Repository<Post>, IPostRepository
 {
     public PostRepository(AppDbContext context) : base(context) { }
 
-    public async Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(int memberId)
+    public async Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(Guid memberId)
     {
         return await _context.posts
             .AsNoTracking()
