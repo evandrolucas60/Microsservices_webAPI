@@ -174,14 +174,6 @@ public class UserProfileController : ControllerBase
             var rootDirectory = _configuration["PathSettings:RootPath"];
             var rootDirectoryUrl = _configuration["PathSettings:RootPathURl"];
 
-            var folderpath = Path.Combine(
-                rootDirectory,
-                "profiles",
-                profile.ProfileId.ToString()
-            );
-
-            Directory.CreateDirectory(folderpath);
-
             // 🔵 Atualiza Gender
             if (!string.IsNullOrWhiteSpace(dto.Gender))
             {
@@ -191,6 +183,19 @@ public class UserProfileController : ControllerBase
             // 🟢 Profile Picture
             if (dto.ProfilePicture != null && dto.ProfilePicture.Length > 0)
             {
+                var folderpath = Path.Combine(
+                rootDirectory,
+                "profiles",
+                profile.ProfileId.ToString(),"profileImage"
+                );
+
+                if (Directory.Exists(folderpath))
+                {
+                    Directory.Delete(folderpath, true);
+                }
+
+                Directory.CreateDirectory(folderpath);
+
                 var extension = Path.GetExtension(dto.ProfilePicture.FileName).ToLower();
                 var uniqueFileName = $"{Guid.NewGuid()}{extension}";
                 var path = Path.Combine(folderpath, uniqueFileName);
@@ -199,12 +204,25 @@ public class UserProfileController : ControllerBase
                 await dto.ProfilePicture.CopyToAsync(stream);
 
                 profile.ProfilePicture =
-                    $"{rootDirectoryUrl}/profiles/{profile.ProfileId}/{uniqueFileName}";
+                    $"{rootDirectoryUrl}/profiles/{profile.ProfileId}/profileImage/{uniqueFileName}";
             }
 
             // 🟣 Cover Photo
             if (dto.CoverPhoto != null && dto.CoverPhoto.Length > 0)
             {
+                var folderpath = Path.Combine(
+                rootDirectory,
+                "profiles",
+                profile.ProfileId.ToString(), "coverImage"
+                );
+
+                if (Directory.Exists(folderpath))
+                {
+                    Directory.Delete(folderpath, true);
+                }
+
+                Directory.CreateDirectory(folderpath);
+
                 var extension = Path.GetExtension(dto.CoverPhoto.FileName).ToLower();
                 var uniqueFileName = $"{Guid.NewGuid()}{extension}";
                 var path = Path.Combine(folderpath, uniqueFileName);
@@ -213,7 +231,7 @@ public class UserProfileController : ControllerBase
                 await dto.CoverPhoto.CopyToAsync(stream);
 
                 profile.CoverPhoto =
-                    $"{rootDirectoryUrl}/profiles/{profile.ProfileId}/{uniqueFileName}";
+                    $"{rootDirectoryUrl}/profiles/{profile.ProfileId}/coverImage/{uniqueFileName}";
             }
 
             _uof.ProfileRepository.Update(profile);

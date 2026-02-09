@@ -1,8 +1,12 @@
 ﻿using AutoMapper;
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
+using Intranet.Services.ConteudoAPI.Pagination;
+using Intranet.Services.ConteudoAPI.Pagination.Parameters;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
 
 namespace Intranet.Services.ConteudoAPI.Controllers;
 
@@ -101,6 +105,14 @@ public class PostController : ControllerBase
         }
 
         return Ok(_response);
+    }
+
+    [HttpGet("filter/date/pagination")]
+    public async Task<ActionResult<IEnumerable<Post>>> GetPostsByFilterDate(
+        [FromQuery] PostsParametersFilterDate postsParametersFilterDate)
+    {
+        var posts = await _uof.PostRepository.GetPostsFilterDateAsync(postsParametersFilterDate);
+        return FetchPosts(posts);
     }
 
     [HttpPost]
@@ -230,8 +242,6 @@ public class PostController : ControllerBase
         }
     }
 
-
-
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
@@ -255,6 +265,24 @@ public class PostController : ControllerBase
         }
 
         return Ok(_response);
+    }
+
+
+    private ActionResult<IEnumerable<Post>> FetchPosts(PagedList<Post> posts)
+    {
+        var metadata = new
+        {
+            posts.TotalCount,
+            posts.PageSize,
+            posts.CurrentPage,
+            posts.TotalPages,
+            posts.HasNext,
+            posts.HasPrevious
+        };
+
+        Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
+
+        return Ok(posts);
     }
 
 }
