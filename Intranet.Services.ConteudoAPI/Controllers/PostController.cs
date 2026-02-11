@@ -112,7 +112,8 @@ public class PostController : ControllerBase
         [FromQuery] PostsParametersFilterDate postsParametersFilterDate)
     {
         var posts = await _uof.PostRepository.GetPostsFilterDateAsync(postsParametersFilterDate);
-        return FetchPosts(posts);
+       
+        return (FetchPosts(posts));
     }
 
     [HttpPost]
@@ -282,7 +283,8 @@ public class PostController : ControllerBase
 
         Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
 
-        return Ok(posts);
+        _response.Result = posts;
+        return Ok(_response);
     }
 
 }
