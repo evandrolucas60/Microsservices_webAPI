@@ -89,6 +89,8 @@ public class UserController : ControllerBase
                 Profile = _mapper.Map<UserProfileDto>(profile)
             };
 
+            user.Profile.Work = work;
+
             _response.Result = user;
         }
         catch (Exception ex)
