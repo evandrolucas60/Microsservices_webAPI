@@ -127,6 +127,26 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
+        [HttpPost]
+        public async Task<ActionResult> Post([FromBody] EducationDto educationDto)
+        {
+            try
+            {
+                Education obj = _mapper.Map<Education>(educationDto);
+                var edu = _uof.EducationRepository.Create(obj);
+                await _uof.CommitAsync();
+
+                _response.Result = _mapper.Map<EducationDto>(obj);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Dados Inválidos");
+                _response.IsSuccess = false;
+                _response.Message = ex.Message;
+            }
+            return Ok(_response);
+        }
+
         [HttpPut("profile/{profileId:Guid}")]
         public async Task<ActionResult> UpdateByProfile(
             Guid profileId,
