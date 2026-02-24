@@ -68,7 +68,7 @@ builder.Services.AddCors(options =>
                .AllowAnyMethod()
                .AllowAnyHeader()
                .AllowCredentials()
-               .WithExposedHeaders("Authorization");
+               .WithExposedHeaders("x-pagination", "Authorization");
     });
 });
 
