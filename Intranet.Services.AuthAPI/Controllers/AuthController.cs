@@ -1,7 +1,6 @@
 ﻿using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Models.DTOs;
 using Intranet.Services.AuthAPI.Service.IService;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
@@ -133,7 +132,7 @@ public class AuthController : ControllerBase
 
             _ = int.TryParse(_configuration["JWT:RefreshTokenValidityInMinutes"], out int refreshTokenValidityInMinutes);
 
-            user.RefreshTokenExpiryTime = DateTime.Now.AddMinutes(refreshTokenValidityInMinutes);
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(refreshTokenValidityInMinutes);
 
             user.RefreshToken = refreshToken;
 

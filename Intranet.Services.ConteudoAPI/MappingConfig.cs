@@ -5,19 +5,14 @@ using Intranet.Services.ConteudoAPI.Models.DTOs;
 
 namespace Intranet.Services.ConteudoAPI;
 
-public class MappingConfig
+public class MappingConfig : Profile
 {
-    public static MapperConfiguration RegisterMaps()
+    public MappingConfig()
     {
-        var mappingConfig = new MapperConfiguration(config =>
-        {
-            config.CreateMap<Comment, CommentDto>().ReverseMap();
+        CreateMap<Comment, CommentDto>().ReverseMap();
+        CreateMap<Post, PostDto>().ReverseMap();
 
-            config.CreateMap<Post, PostDto>().ReverseMap();
-
-            config.CreateMap<PostLike, CreateLikeDto>();
-            config.CreateMap<CommentLike, CreateLikeDto>();
-        });
-        return mappingConfig;
+        CreateMap<PostLike, CreateLikeDto>();
+        CreateMap<CommentLike, CreateLikeDto>();
     }
 }

@@ -4,6 +4,7 @@ using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
 using Intranet.Services.IdentidadeAPI.Service.IService;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Intranet.Services.IdentidadeAPI.Controllers;
 
@@ -28,6 +29,15 @@ public class UserController : ControllerBase
         _logger = logger;
     }
 
+    // Claim "id" do JWT emitido pelo AuthAPI (o usuário do token)
+    private bool IsAuthenticatedAs(string userId) =>
+        User.Identity?.IsAuthenticated == true &&
+        !string.IsNullOrEmpty(userId) &&
+        string.Equals(User.FindFirst("id")?.Value, userId, StringComparison.OrdinalIgnoreCase);
+
+    private string? GetClaim(params string[] types) =>
+        types.Select(t => User.FindFirst(t)?.Value).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
     [HttpGet("GetProfileInfo")]
     public async Task<ActionResult> GetProfileInfo(string userId)
     {
@@ -35,11 +45,55 @@ public class UserController : ControllerBase
         {
             var member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId, includeProperties: "Address");
 
-            if (member == null) return NotFound("Nenhum membro encontrado.");
+            // Usuários recém-cadastrados no AuthAPI ainda não têm Member/Profile:
+            // cria os registros vazios na primeira consulta, apenas para o próprio usuário do token.
+            var isOwnUser = IsAuthenticatedAs(userId);
+
+            if (member == null)
+            {
+                if (!isOwnUser) return NotFound("Nenhum membro encontrado.");
+
+                member = new Models.Member
+                {
+                    MemberId = Guid.NewGuid(),
+                    UserId = userId,
+                    Email = GetClaim(ClaimTypes.Email, "email"),
+                    Name = GetClaim(ClaimTypes.Name, "unique_name") ?? GetClaim(ClaimTypes.Email, "email"),
+                    dateOfMembership = DateTime.UtcNow,
+                };
+                _uof.MemberRepository.Create(member);
+                await _uof.CommitAsync();
+                _logger.LogInformation("Member criado automaticamente para o usuário {UserId}", userId);
+            }
 
             var profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
 
-            if (profile == null) return NotFound("Profile não encontrado");
+            if (profile == null)
+            {
+                if (!isOwnUser) return NotFound("Profile não encontrado");
+
+                // Profiles.WorkId é obrigatório no schema atual: cria um Work vazio junto
+                // (o EF insere o Work antes e preenche o WorkId do Profile).
+                profile = new UserProfile
+                {
+                    ProfileId = Guid.NewGuid(),
+                    MemberId = member.MemberId,
+                    Work = new Work
+                    {
+                        Title = string.Empty,
+                        Company = string.Empty,
+                        Location = string.Empty,
+                        Registration = string.Empty,
+                        Description = string.Empty,
+                        Department = string.Empty,
+                        AdmissionDate = DateTime.UtcNow,
+                        MemberId = member.MemberId,
+                    },
+                };
+                _uof.ProfileRepository.Create(profile);
+                await _uof.CommitAsync();
+                _logger.LogInformation("Profile criado automaticamente para o member {MemberId}", member.MemberId);
+            }
 
             var work = await _workService.GetWorkByMemberId(member.MemberId);
 

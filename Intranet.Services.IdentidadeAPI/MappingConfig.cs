@@ -4,18 +4,15 @@ using Intranet.Services.IdentidadeAPI.Models.DTOs;
 
 namespace Intranet.Services.IdentidadeAPI;
 
-public class MappingConfig
+public class MappingConfig : Profile
 {
-    public static MapperConfiguration RegisterMaps()
+    public MappingConfig()
     {
-        var mappingConfig = new MapperConfiguration(config =>
-        {
-            config.CreateMap<Education, EducationDto>().ReverseMap();
-            config.CreateMap<Member, MemberDto>().ReverseMap();
-            config.CreateMap<UserProfile, UserProfileDto>().ReverseMap();
-            config.CreateMap<Work, WorkDto>().ReverseMap();
-            config.CreateMap<Address, AddressDto>().ReverseMap();
-        });
-        return mappingConfig;
+        CreateMap<Education, EducationDto>().ReverseMap();
+        CreateMap<Member, MemberDto>().ReverseMap();
+        CreateMap<UserProfile, UserProfileDto>().ReverseMap();
+        CreateMap<Work, WorkDto>().ReverseMap();
+        CreateMap<Address, AddressDto>().ReverseMap();
     }
 }
+
