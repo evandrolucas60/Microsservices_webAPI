@@ -16,6 +16,13 @@ public class ChatMessageDto
     /// <summary>Imagem anexada (baixe em api/chat/attachments/{AttachmentId}).</summary>
     public int? AttachmentId { get; set; }
     public string? AttachmentName { get; set; }
+
+    /// <summary>"image", "audio" ou "document".</summary>
+    public string? AttachmentKind { get; set; }
+    public long? AttachmentSize { get; set; }
+
+    /// <summary>"text" ou "nudge" (chamar atenção).</summary>
+    public string Kind { get; set; } = "text";
 }
 
 public class ConversationDto
@@ -37,9 +44,12 @@ public class SendChatMessageRequest
     public string? Body { get; set; }
 }
 
-/// <summary>Envio de imagem (multipart/form-data), com legenda opcional.</summary>
+/// <summary>Envio de arquivo (multipart/form-data): imagem, áudio gravado ou documento, com legenda opcional.</summary>
 public class SendChatImageForm
 {
     public IFormFile? File { get; set; }
     public string? Body { get; set; }
+
+    /// <summary>"audio" quando o arquivo é uma gravação do microfone.</summary>
+    public string? Kind { get; set; }
 }

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Intranet.Services.IdentidadeAPI.Utility;
 
 namespace Intranet.Services.IdentidadeAPI.Models;
 
@@ -25,4 +26,17 @@ public class UserProfile
     public string? CoverPhoto { get; set; }
     public string? Gender { get; set; }
 
+
+    // 🔹 Redes sociais (URLs validadas em Utility/SocialLinkValidator; gravadas só pelo próprio usuário)
+    [MaxLength(SocialLinkValidator.MaxLength)]
+    public string? TwitterUrl { get; set; }
+
+    [MaxLength(SocialLinkValidator.MaxLength)]
+    public string? FacebookUrl { get; set; }
+
+    [MaxLength(SocialLinkValidator.MaxLength)]
+    public string? InstagramUrl { get; set; }
+
+    [MaxLength(SocialLinkValidator.MaxLength)]
+    public string? LinkedinUrl { get; set; }
 }

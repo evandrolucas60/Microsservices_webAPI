@@ -13,4 +13,10 @@ public class UserProfileDto
     public string? ProfilePicture { get; set; }
     public string? CoverPhoto { get; set; }
     public string? Gender { get; set; }
+
+    // Redes sociais: somente leitura aqui (gravadas por PUT api/UserProfile/redes-sociais)
+    public string? TwitterUrl { get; set; }
+    public string? FacebookUrl { get; set; }
+    public string? InstagramUrl { get; set; }
+    public string? LinkedinUrl { get; set; }
 }

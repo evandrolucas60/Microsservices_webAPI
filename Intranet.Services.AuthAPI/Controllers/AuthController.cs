@@ -204,13 +204,26 @@ public class AuthController : ControllerBase
 
         if (user == null
             || user.RefreshToken != refreshToken
-            || user.RefreshTokenExpiryTime <= DateTime.Now
+            // A expiração é gravada em UTC (ver Login)
+            || user.RefreshTokenExpiryTime <= DateTime.UtcNow
             )
         {
             return BadRequest("Invalid access token/refresh token - user null");
         }
 
-        var newAccessToken = _tokenService.GenerateAccessToken(principal.Claims.ToList(), _configuration);
+        // Claims montados a partir do usuário atual (papéis atualizados), não copiados do token antigo
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName!),
+            new Claim(ClaimTypes.Email, user.Email!),
+            new Claim("id", user.Id!),
+        };
+        foreach (var role in await _userManager.GetRolesAsync(user))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var newAccessToken = _tokenService.GenerateAccessToken(claims, _configuration);
         var newRefreshtoken = _tokenService.GenerateRefreshToken();
         user.RefreshToken = newRefreshtoken;
 

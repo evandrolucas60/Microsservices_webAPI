@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<UserProfile> Profiles { get; set; }
     public DbSet<Work> Works { get; set; }
     public DbSet<Education> Educations { get; set; }
+    public DbSet<Certificate> Certificates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +37,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Work>()
             .HasIndex(w => w.MemberId)
             .IsUnique();
+
+        // Certificados (PDF no banco): removidos junto com o membro
+        modelBuilder.Entity<Certificate>(b =>
+        {
+            b.HasOne<Member>()
+                .WithMany()
+                .HasForeignKey(c => c.MemberId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(c => c.MemberId);
+            b.Property(c => c.Content).HasColumnType("bytea");
+        });
     }
 }
 

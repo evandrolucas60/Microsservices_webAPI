@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ChatMessage>(b =>
         {
             b.Property(m => m.Body).HasMaxLength(2000).IsRequired();
+            b.Property(m => m.Kind).HasMaxLength(10).IsRequired().HasDefaultValue(ChatMessageKinds.Text);
             b.HasOne(m => m.Conversation)
                 .WithMany(c => c.Messages)
                 .HasForeignKey(m => m.ConversationId)
@@ -37,11 +38,14 @@ public class AppDbContext : DbContext
             b.HasIndex(m => new { m.ConversationId, m.ChatMessageId });
             // Não lidas
             b.HasIndex(m => new { m.ConversationId, m.ReadAt });
+            // Limite de "chamar atenção"
+            b.HasIndex(m => new { m.ConversationId, m.SenderMemberId, m.Kind });
         });
 
         modelBuilder.Entity<ChatAttachment>(b =>
         {
             b.Property(a => a.FileName).HasMaxLength(255).IsRequired();
+            b.Property(a => a.Kind).HasMaxLength(10).IsRequired().HasDefaultValue("image");
             b.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
             b.Property(a => a.Content).IsRequired();
             b.HasOne(a => a.Message)

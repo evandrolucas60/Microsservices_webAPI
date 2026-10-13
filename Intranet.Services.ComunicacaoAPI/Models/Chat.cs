@@ -42,17 +42,31 @@ public class ChatMessage
     /// <summary>Apagada pelo remetente (para os dois): o texto e a imagem são removidos.</summary>
     public DateTime? DeletedAt { get; set; }
 
+    /// <summary>"text" (mensagem, com ou sem anexo) ou "nudge" (chamar atenção). Ver <see cref="ChatMessageKinds"/>.</summary>
+    public string Kind { get; set; } = ChatMessageKinds.Text;
+
     public ChatAttachment? Attachment { get; set; }
 }
 
-/// <summary>Imagem enviada na conversa (armazenada no banco).</summary>
+/// <summary>Arquivo enviado na conversa (imagem, áudio ou documento), armazenado no banco.</summary>
 public class ChatAttachment
 {
     public int ChatAttachmentId { get; set; }
+
+    /// <summary>"image", "audio" ou "document".</summary>
+    public string Kind { get; set; } = "image";
     public int ChatMessageId { get; set; }
     public ChatMessage Message { get; set; } = null!;
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long Size { get; set; }
     public byte[] Content { get; set; } = Array.Empty<byte>();
+}
+
+public static class ChatMessageKinds
+{
+    public const string Text = "text";
+
+    /// <summary>Chamar atenção: faz a tela do destinatário tremer (limite de 1 por minuto).</summary>
+    public const string Nudge = "nudge";
 }

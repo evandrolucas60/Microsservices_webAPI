@@ -236,10 +236,18 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.Property<Guid>("MemberId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SharedFromMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SharedFromPostId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Text")
                         .HasColumnType("text");
 
                     b.HasKey("PostId");
+
+                    b.HasIndex("SharedFromPostId");
 
                     b.ToTable("posts");
                 });
@@ -328,6 +336,16 @@ namespace Intranet.Services.ConteudoAPI.Migrations
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Post", b =>
                 {
                     b.Navigation("Likes");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Post", b =>
+                {
+                    b.HasOne("Intranet.Services.ConteudoAPI.Models.Post", "SharedFromPost")
+                        .WithMany()
+                        .HasForeignKey("SharedFromPostId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SharedFromPost");
                 });
 #pragma warning restore 612, 618
         }

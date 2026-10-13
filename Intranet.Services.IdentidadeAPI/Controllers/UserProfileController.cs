@@ -276,4 +276,70 @@ public class UserProfileController : ControllerBase
 
         return Ok(profile);
     }
+
+    /// <summary>
+    /// Atualiza os links de redes sociais do perfil do usuário autenticado (claim "id").
+    /// Campo vazio remove o link; os demais precisam ser URLs http/https da rede correspondente.
+    /// </summary>
+    [HttpPut("redes-sociais")]
+    public async Task<ActionResult> UpdateSocialLinks([FromBody] SocialLinksDto dto)
+    {
+        var userId = _ownership.UserId(User);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (dto is null) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Dados inválidos." });
+
+        var erros = new List<string>();
+        string? Validar(string? valor, string rede, string[] hosts)
+        {
+            if (!SocialLinkValidator.TryNormalize(valor, rede, hosts, out var normalizado, out var erro))
+            {
+                erros.Add(erro!);
+            }
+            return normalizado;
+        }
+
+        var twitter = Validar(dto.TwitterUrl, "X (Twitter)", SocialLinkValidator.TwitterHosts);
+        var facebook = Validar(dto.FacebookUrl, "Facebook", SocialLinkValidator.FacebookHosts);
+        var instagram = Validar(dto.InstagramUrl, "Instagram", SocialLinkValidator.InstagramHosts);
+        var linkedin = Validar(dto.LinkedinUrl, "LinkedIn", SocialLinkValidator.LinkedinHosts);
+
+        if (erros.Count > 0)
+        {
+            return BadRequest(new ResponseDto { IsSuccess = false, Message = string.Join(" ", erros) });
+        }
+
+        var member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId);
+        if (member is null) return NotFound(new ResponseDto { IsSuccess = false, Message = "Membro não encontrado." });
+
+        var profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
+        if (profile is null) return NotFound(new ResponseDto { IsSuccess = false, Message = "Perfil não encontrado." });
+
+        try
+        {
+            profile.TwitterUrl = twitter;
+            profile.FacebookUrl = facebook;
+            profile.InstagramUrl = instagram;
+            profile.LinkedinUrl = linkedin;
+
+            _uof.ProfileRepository.Update(profile);
+            await _uof.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao atualizar redes sociais do perfil {ProfileId}", profile.ProfileId);
+            return StatusCode(500, new ResponseDto { IsSuccess = false, Message = "Não foi possível salvar as redes sociais." });
+        }
+
+        return Ok(new ResponseDto
+        {
+            Result = new SocialLinksDto
+            {
+                TwitterUrl = twitter,
+                FacebookUrl = facebook,
+                InstagramUrl = instagram,
+                LinkedinUrl = linkedin,
+            },
+            Message = "Redes sociais atualizadas.",
+        });
+    }
 }

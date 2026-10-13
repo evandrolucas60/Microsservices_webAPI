@@ -78,7 +78,13 @@ public class ChatController : ControllerBase
         Deleted = m.DeletedAt != null,
         AttachmentId = m.DeletedAt == null && m.Attachment != null ? m.Attachment.ChatAttachmentId : null,
         AttachmentName = m.DeletedAt == null && m.Attachment != null ? m.Attachment.FileName : null,
+        AttachmentKind = m.DeletedAt == null && m.Attachment != null ? m.Attachment.Kind : null,
+        AttachmentSize = m.DeletedAt == null && m.Attachment != null ? m.Attachment.Size : null,
+        Kind = m.Kind,
     };
+
+    /// <summary>Intervalo mínimo entre dois "chamar atenção" do mesmo remetente na mesma conversa.</summary>
+    private static readonly TimeSpan NudgeCooldown = TimeSpan.FromMinutes(1);
 
     private static Expression<Func<ChatMessage, bool>> UnreadFor(Guid me) => m =>
         m.SenderMemberId != me && m.ReadAt == null && m.DeletedAt == null;
@@ -227,32 +233,83 @@ public class ChatController : ControllerBase
     [RequestFormLimits(MultipartBodyLengthLimit = ImageFiles.MaxBytes + 64 * 1024)]
     public async Task<ActionResult> SendImage(int id, [FromForm] SendChatImageForm form, CancellationToken ct)
     {
+        var image = await ImageFiles.ReadAsync(form.File, ct);
+        if (image.Error is not null) return BadRequest(Fail(image.Error));
+        return await SendAttachmentAsync(id, form.Body, ChatAttachmentKinds.Image, image.ContentType!, image.FileName, image.Content!, ct);
+    }
+
+    /// <summary>
+    /// Envia um arquivo: imagem (até 5 MB), áudio gravado (Kind = "audio") ou documento
+    /// (PDF, Office, texto/CSV), até 10 MB, com legenda opcional. O tipo é validado pelo conteúdo.
+    /// </summary>
+    [HttpPost("conversations/{id:int}/files")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(ChatFiles.MaxBytes + 64 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = ChatFiles.MaxBytes + 64 * 1024)]
+    public async Task<ActionResult> SendFile(int id, [FromForm] SendChatImageForm form, CancellationToken ct)
+    {
+        var file = await ChatFiles.ReadAsync(form.File, form.Kind, ct);
+        if (file.Error is not null) return BadRequest(Fail(file.Error));
+        return await SendAttachmentAsync(id, form.Body, file.Kind!, file.ContentType!, file.FileName, file.Content!, ct);
+    }
+
+    private async Task<ActionResult> SendAttachmentAsync(int id, string? caption, string kind, string contentType, string fileName, byte[] content, CancellationToken ct)
+    {
         var me = await CurrentMemberIdAsync(ct);
         if (me is null) return BadRequest(Fail(PerfilNaoEncontrado));
 
-        var body = form.Body?.Trim() ?? string.Empty;
+        var body = caption?.Trim() ?? string.Empty;
         if (body.Length > MaxBodyLength) return BadRequest(Fail($"A legenda deve ter no máximo {MaxBodyLength} caracteres."));
 
         var conversation = await FindConversationAsync(id, me.Value, ct);
         if (conversation is null) return NotFound(Fail("Conversa não encontrada."));
 
-        var image = await ImageFiles.ReadAsync(form.File, ct);
-        if (image.Error is not null) return BadRequest(Fail(image.Error));
-
         var attachment = new ChatAttachment
         {
-            FileName = image.FileName,
-            ContentType = image.ContentType!,
-            Size = image.Content!.LongLength,
-            Content = image.Content,
+            Kind = kind,
+            FileName = fileName,
+            ContentType = contentType,
+            Size = content.LongLength,
+            Content = content,
         };
         return Ok(new ResponseDto { Result = await CreateMessageAsync(conversation, me.Value, body, attachment, ct) });
     }
 
-    private async Task<ChatMessageDto> CreateMessageAsync(Conversation conversation, Guid me, string body, ChatAttachment? attachment, CancellationToken ct)
+    /// <summary>
+    /// "Chamar atenção": a tela do destinatário treme. Limite de uma vez por minuto por
+    /// remetente em cada conversa (429 com o tempo restante em Result.retryAfterSeconds).
+    /// </summary>
+    [HttpPost("conversations/{id:int}/nudge")]
+    public async Task<ActionResult> Nudge(int id, CancellationToken ct)
+    {
+        var me = await CurrentMemberIdAsync(ct);
+        if (me is null) return BadRequest(Fail(PerfilNaoEncontrado));
+
+        var conversation = await FindConversationAsync(id, me.Value, ct);
+        if (conversation is null) return NotFound(Fail("Conversa não encontrada."));
+
+        var now = DateTime.UtcNow;
+        var last = await _db.chatMessages
+            .Where(m => m.ConversationId == id && m.SenderMemberId == me.Value && m.Kind == ChatMessageKinds.Nudge)
+            .MaxAsync(m => (DateTime?)m.CreatedAt, ct);
+        if (last is not null && now - last.Value < NudgeCooldown)
+        {
+            var wait = (int)Math.Ceiling((NudgeCooldown - (now - last.Value)).TotalSeconds);
+            return StatusCode(StatusCodes.Status429TooManyRequests, new ResponseDto
+            {
+                IsSuccess = false,
+                Message = $"Aguarde {wait} s para chamar a atenção novamente.",
+                Result = new { retryAfterSeconds = wait },
+            });
+        }
+
+        return Ok(new ResponseDto { Result = await CreateMessageAsync(conversation, me.Value, string.Empty, null, ct, ChatMessageKinds.Nudge) });
+    }
+
+    private async Task<ChatMessageDto> CreateMessageAsync(Conversation conversation, Guid me, string body, ChatAttachment? attachment, CancellationToken ct, string kind = ChatMessageKinds.Text)
     {
         var now = DateTime.UtcNow;
-        var message = new ChatMessage { ConversationId = conversation.ConversationId, SenderMemberId = me, Body = body, CreatedAt = now, Attachment = attachment };
+        var message = new ChatMessage { ConversationId = conversation.ConversationId, SenderMemberId = me, Body = body, CreatedAt = now, Attachment = attachment, Kind = kind };
         _db.chatMessages.Add(message);
         conversation.LastMessageAt = now;
         await _db.SaveChangesAsync(ct);
@@ -267,6 +324,9 @@ public class ChatController : ControllerBase
             CreatedAt = now,
             AttachmentId = attachment?.ChatAttachmentId,
             AttachmentName = attachment?.FileName,
+            AttachmentKind = attachment?.Kind,
+            AttachmentSize = attachment?.Size,
+            Kind = kind,
         };
 
         // Destinatário e as outras abas do remetente
@@ -293,8 +353,8 @@ public class ChatController : ControllerBase
         {
             var found = await _identidade.LookupAsync(new[] { sender }, BearerToken, ct);
             var name = found.TryGetValue(sender, out var info) && !string.IsNullOrWhiteSpace(info.Nome) ? info.Nome : "Um colaborador";
-            // O link abre a conversa no chat flutuante (?chat=<remetente>)
-            await _notifications.NotifyAsync(new[] { recipient }, $"{name} enviou uma mensagem no chat.", $"/?chat={sender}", BearerToken, false, ct);
+            // O link abre a conversa na página do chat
+            await _notifications.NotifyAsync(new[] { recipient }, $"{name} enviou uma mensagem no chat.", $"/chat/{sender}", BearerToken, false, ct);
         }
         catch (Exception ex)
         {
@@ -313,13 +373,16 @@ public class ChatController : ControllerBase
         var attachment = await _db.chatAttachments.AsNoTracking()
             .Where(a => a.ChatAttachmentId == attachmentId && a.Message.DeletedAt == null)
             .Where(a => a.Message.Conversation.MemberAId == me.Value || a.Message.Conversation.MemberBId == me.Value)
-            .Select(a => new { a.Content, a.ContentType, a.FileName })
+            .Select(a => new { a.Content, a.ContentType, a.FileName, a.Kind })
             .FirstOrDefaultAsync(ct);
         if (attachment is null) return NotFound(Fail("Imagem não encontrada."));
 
         Response.Headers["X-Content-Type-Options"] = "nosniff";
         Response.Headers.CacheControl = "private, max-age=86400";
-        return File(attachment.Content, attachment.ContentType);
+        // Documentos sempre como download (nunca renderizados pelo navegador); imagem/áudio inline
+        return attachment.Kind == ChatAttachmentKinds.Document
+            ? File(attachment.Content, attachment.ContentType, attachment.FileName)
+            : File(attachment.Content, attachment.ContentType, enableRangeProcessing: true);
     }
 
     /// <summary>Apaga a própria mensagem para os dois participantes.</summary>

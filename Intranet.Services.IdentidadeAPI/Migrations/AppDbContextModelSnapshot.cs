@@ -56,6 +56,49 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.ToTable("Addresses");
                 });
 
+            modelBuilder.Entity("Intranet.Services.IdentidadeAPI.Models.Certificate", b =>
+                {
+                    b.Property<Guid>("CertificateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("IssueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Issuer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("CertificateId");
+
+                    b.HasIndex("MemberId");
+
+                    b.ToTable("Certificates");
+                });
+
             modelBuilder.Entity("Intranet.Services.IdentidadeAPI.Models.Education", b =>
                 {
                     b.Property<int>("EducationId")
@@ -133,14 +176,30 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.Property<string>("CoverPhoto")
                         .HasColumnType("text");
 
+                    b.Property<string>("FacebookUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("Gender")
                         .HasColumnType("text");
+
+                    b.Property<string>("InstagramUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("LinkedinUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<Guid>("MemberId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ProfilePicture")
                         .HasColumnType("text");
+
+                    b.Property<string>("TwitterUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<int>("WorkId")
                         .HasColumnType("integer");
@@ -209,6 +268,15 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.HasOne("Intranet.Services.IdentidadeAPI.Models.Member", null)
                         .WithOne("Address")
                         .HasForeignKey("Intranet.Services.IdentidadeAPI.Models.Address", "MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Intranet.Services.IdentidadeAPI.Models.Certificate", b =>
+                {
+                    b.HasOne("Intranet.Services.IdentidadeAPI.Models.Member", null)
+                        .WithMany()
+                        .HasForeignKey("MemberId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

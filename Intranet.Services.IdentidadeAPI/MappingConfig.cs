@@ -15,9 +15,15 @@ public class MappingConfig : Profile
         CreateMap<Member, MemberDto>().ReverseMap()
             .ForMember(d => d.Address, o => o.Ignore());
 
-        // DTO -> entidade não cria Work pela navegação: o trabalho é gravado por api/Work
+        // DTO -> entidade não cria Work pela navegação: o trabalho é gravado por api/Work.
+        // Redes sociais também não: são validadas e gravadas só por api/UserProfile/redes-sociais
+        // (senão o UserUpsert apagaria os links quando o payload não os trouxesse).
         CreateMap<UserProfile, UserProfileDto>().ReverseMap()
-            .ForMember(d => d.Work, o => o.Ignore());
+            .ForMember(d => d.Work, o => o.Ignore())
+            .ForMember(d => d.TwitterUrl, o => o.Ignore())
+            .ForMember(d => d.FacebookUrl, o => o.Ignore())
+            .ForMember(d => d.InstagramUrl, o => o.Ignore())
+            .ForMember(d => d.LinkedinUrl, o => o.Ignore());
         CreateMap<Work, WorkDto>().ReverseMap();
         CreateMap<Address, AddressDto>().ReverseMap();
     }

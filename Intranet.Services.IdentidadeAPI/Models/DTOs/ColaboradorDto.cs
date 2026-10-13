@@ -16,6 +16,12 @@ public class ColaboradorDto
     public string? Loja { get; set; }
     public string? Foto { get; set; }
 
+    // Redes sociais (null quando não cadastradas)
+    public string? TwitterUrl { get; set; }
+    public string? FacebookUrl { get; set; }
+    public string? InstagramUrl { get; set; }
+    public string? LinkedinUrl { get; set; }
+
     // Aniversariantes: apenas dia/mês
     public int? DiaAniversario { get; set; }
     public int? MesAniversario { get; set; }

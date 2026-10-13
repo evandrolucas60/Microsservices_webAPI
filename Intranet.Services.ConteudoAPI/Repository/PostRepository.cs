@@ -25,6 +25,16 @@ public class PostRepository : Repository<Post>, IPostRepository
             TotalLikes = p.Likes.Count,
             TotalComments = _context.comments.Count(c => c.PostId == p.PostId),
             LikedByMe = viewer != Guid.Empty && p.Likes.Any(l => l.MemberId == viewer),
+            TotalShares = _context.posts.Count(s => s.SharedFromPostId == p.PostId),
+            SharedByMe = viewer != Guid.Empty && _context.posts.Any(s => s.SharedFromPostId == p.PostId && s.MemberId == viewer),
+            SharedFromMemberId = p.SharedFromMemberId,
+            SharedPost = p.SharedFromPost == null ? null : new SharedPostDto
+            {
+                PostId = p.SharedFromPost.PostId,
+                MemberId = p.SharedFromPost.MemberId,
+                Text = p.SharedFromPost.Text,
+                CreatedAt = p.SharedFromPost.CreatedAt,
+            },
         });
     }
 

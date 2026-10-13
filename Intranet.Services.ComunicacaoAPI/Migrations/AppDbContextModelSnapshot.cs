@@ -47,6 +47,13 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("image");
+
                     b.Property<long>("Size")
                         .HasColumnType("bigint");
 
@@ -77,6 +84,13 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("text");
+
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -91,6 +105,8 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                     b.HasIndex("ConversationId", "ChatMessageId");
 
                     b.HasIndex("ConversationId", "ReadAt");
+
+                    b.HasIndex("ConversationId", "SenderMemberId", "Kind");
 
                     b.ToTable("chatMessages");
                 });

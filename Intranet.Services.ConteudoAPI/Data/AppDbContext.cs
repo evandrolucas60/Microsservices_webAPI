@@ -23,6 +23,16 @@ public class AppDbContext : DbContext
 
         // Uma curtida por colaborador por post/comentário (evita contagem duplicada)
         modelBuilder.Entity<PostLike>().HasIndex(l => new { l.PostId, l.MemberId }).IsUnique();
+
+        // Compartilhamento: excluir o original não exclui os compartilhamentos (ficam "indisponível")
+        modelBuilder.Entity<Post>(b =>
+        {
+            b.HasOne(p => p.SharedFromPost)
+                .WithMany()
+                .HasForeignKey(p => p.SharedFromPostId)
+                .OnDelete(DeleteBehavior.SetNull);
+            b.HasIndex(p => p.SharedFromPostId);
+        });
         modelBuilder.Entity<CommentLike>().HasIndex(l => new { l.CommentId, l.MemberId }).IsUnique();
 
         modelBuilder.Entity<ArticleImage>(b =>

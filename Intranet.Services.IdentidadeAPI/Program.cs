@@ -9,6 +9,7 @@ using Intranet.Services.IdentidadeAPI.Service.IService;
 using Intranet.Services.IdentidadeAPI.Utility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 
 public partial class Program
@@ -23,6 +24,9 @@ public partial class Program
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
             options.UseNpgsql(connectionString);
+            // Migrations escritas à mão (sem Designer): o snapshot é mantido manualmente e
+            // pequenas diferenças não devem impedir o Migrate() na inicialização
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

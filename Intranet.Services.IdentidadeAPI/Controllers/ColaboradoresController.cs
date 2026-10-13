@@ -56,6 +56,10 @@ public class ColaboradoresController : ControllerBase
         Departamento = l.Work?.Department,
         Loja = l.Work?.Location,
         Foto = l.Profile?.ProfilePicture,
+        TwitterUrl = l.Profile?.TwitterUrl,
+        FacebookUrl = l.Profile?.FacebookUrl,
+        InstagramUrl = l.Profile?.InstagramUrl,
+        LinkedinUrl = l.Profile?.LinkedinUrl,
     };
 
     private static bool MesValido(int mes) => mes is >= 1 and <= 12;

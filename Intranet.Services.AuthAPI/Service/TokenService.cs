@@ -9,8 +9,25 @@ namespace Intranet.Services.AuthAPI.Service
 {
     public class TokenService : ITokenService
     {
+        // Claims controlados pelo próprio emissor: na renovação vêm do token antigo e, se fossem
+        // copiados, o "aud" se repetiria a cada refresh e o token cresceria indefinidamente
+        private static readonly HashSet<string> RegisteredClaims = new(StringComparer.Ordinal)
+        {
+            JwtRegisteredClaimNames.Aud,
+            JwtRegisteredClaimNames.Iss,
+            JwtRegisteredClaimNames.Exp,
+            JwtRegisteredClaimNames.Nbf,
+            JwtRegisteredClaimNames.Iat,
+            JwtRegisteredClaimNames.Jti,
+        };
+
         public JwtSecurityToken GenerateAccessToken(IEnumerable<Claim> claims, IConfiguration _config)
         {
+            // Novo jti a cada token
+            claims = claims.Where(c => !RegisteredClaims.Contains(c.Type))
+                .Append(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()))
+                .ToList();
+
             var key = _config.GetSection("JWT").GetValue<string>("SecretKey") ??
                 throw new InvalidOperationException("Invalid Secret key");
 
