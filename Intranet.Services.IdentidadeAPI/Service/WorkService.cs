@@ -38,13 +38,17 @@ namespace Intranet.Services.IdentidadeAPI.Service
             var response = await client.PostAsync($"api/Work", content : jsonContent);
             var apiContente = await response.Content.ReadAsStringAsync();
 
+            // Falhas (inclusive 401/403 da checagem de dono) não podem ser tratadas como sucesso
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Falha ao gravar trabalho: HTTP {(int)response.StatusCode} {apiContente}");
+
             var resp = JsonConvert.DeserializeObject<ResponseDto>(apiContente);
 
             if (resp != null && resp.IsSuccess)
             {
                 return JsonConvert.DeserializeObject<WorkDto>(Convert.ToString(resp.Result));
             }
-            return new WorkDto();
+            throw new InvalidOperationException($"Falha ao gravar trabalho: {resp?.Message}");
         }
     }
 }

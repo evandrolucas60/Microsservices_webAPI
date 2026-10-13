@@ -1,290 +1,172 @@
-﻿using AutoMapper;
+using Intranet.Services.ConteudoAPI.Data;
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Pagination;
 using Intranet.Services.ConteudoAPI.Pagination.Parameters;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
+using Intranet.Services.ConteudoAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
-using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Intranet.Services.ConteudoAPI.Controllers;
 
+/// <summary>
+/// Posts do feed. Autoria e curtidas vêm do token; as listas trazem totalLikes,
+/// totalComments e likedByMe. Edição/exclusão apenas pelo autor.
+/// </summary>
 [Route("api/[controller]")]
 [ApiController]
-public class PostController : ControllerBase
+[Authorize]
+public class PostController : ContentControllerBase
 {
-    private readonly IUnityOfWork _uof;
-    private readonly ILogger<PostController> _logger;
-    private ResponseDto _response;
-    private IMapper _mapper;
+    private const int MaxTextLength = 20000;
 
-    public PostController(IUnityOfWork uof, ILogger<PostController> logger, IMapper mapper)
+    private readonly IUnityOfWork _uof;
+    private readonly AppDbContext _db;
+    private readonly ILogger<PostController> _logger;
+
+    public PostController(IUnityOfWork uof, AppDbContext db, IMemberResolver members, INotificationClient notifications, ILogger<PostController> logger)
+        : base(members, notifications)
     {
         _uof = uof;
+        _db = db;
         _logger = logger;
-        _response = new ResponseDto();
-        _mapper = mapper;
-    }
-
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Post>>> GetAsync()
-    {
-        try
-        {
-            var objlist = await _uof.PostRepository.GetAllAsync();
-            _response.Result = _mapper.Map<IEnumerable<PostDto>>(objlist);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Nenhum dado foi encontrado");
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-        }
-        return Ok(_response);
     }
 
     [HttpGet("{postId:int}")]
-    public async Task<ActionResult<Post>> GetAsync(int postId)
+    public async Task<ActionResult> GetAsync(int postId)
     {
-        try
-        {
-            var obj = await _uof.PostRepository.GetAsync(
-            p => p.PostId == postId,
-            includeProperties: null
-        );
-
-            _response.Result = _mapper.Map<PostDto>(obj);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Nenhum dado foi encontrado");
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-        }
-        return Ok(_response);
-    }
-
-    [HttpGet("GetPostbyMember/{memberId:Guid}")]
-    public async Task<ActionResult<Post>> GetPostbyMember(Guid memberId)
-    {
-        try
-        {
-            var obj = await _uof.PostRepository.GetAsync(c => c.MemberId == memberId);
-            _response.Result = _mapper.Map<PostDto>(obj);
-
-            if (obj is null)
-            {
-                _logger.LogWarning("Objeto não Encontrado ou não existe");
-                return NotFound("Objeto não existe...");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Nenhum dado foi encontrado");
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-
-        }
-        return Ok(_response);
+        var post = await _uof.PostRepository.GetDetailAsync(postId, await CurrentMemberIdAsync());
+        if (post is null) return NotFound(Fail("Post não encontrado."));
+        return Ok(new ResponseDto { Result = post });
     }
 
     [HttpGet("GetAllPostByMemberId/{memberId:Guid}")]
-    public async Task<ActionResult<List<PostDto>>> GetAllPostByMemberIdAsync(Guid memberId)
+    public async Task<ActionResult> GetAllPostByMemberIdAsync(Guid memberId)
     {
-        try
-        {
-            var posts = await _uof.PostRepository.GetAllByMemberIdWithLikesAsync(memberId);
-            _response.Result = posts;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao buscar posts do membro {MemberId}", memberId);
-            _response.IsSuccess = false;
-            _response.Message = "Erro ao buscar posts.";
-        }
-
-        return Ok(_response);
+        var posts = await _uof.PostRepository.GetAllByMemberIdWithLikesAsync(memberId, await CurrentMemberIdAsync());
+        return Ok(new ResponseDto { Result = posts });
     }
 
     [HttpGet("filter/date/pagination")]
-    public async Task<ActionResult<IEnumerable<Post>>> GetPostsByFilterDate(
-        [FromQuery] PostsParametersFilterDate postsParametersFilterDate)
+    public async Task<ActionResult> GetPostsByFilterDate([FromQuery] PostsParametersFilterDate parameters)
     {
-        var posts = await _uof.PostRepository.GetPostsFilterDateAsync(postsParametersFilterDate);
-       
-        return (FetchPosts(posts));
+        var posts = await _uof.PostRepository.GetFeedAsync(parameters, await CurrentMemberIdAsync());
+        WritePagination(posts);
+        return Ok(new ResponseDto { Result = posts });
     }
 
     [HttpPost]
     public async Task<ActionResult> Post([FromBody] PostDto postDto)
     {
-        try
-        {
-            Post obj = _mapper.Map<Post>(postDto);
-            var categoriaCriada = _uof.PostRepository.Create(obj);
-            await _uof.CommitAsync();
+        var memberId = await CurrentMemberIdAsync();
+        if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
 
-            _response.Result = _mapper.Map<PostDto>(obj);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Dados Inválidos");
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-        }
-        return Ok(_response);
-    }
+        var text = postDto.Text?.Trim() ?? string.Empty;
+        if (text.Length == 0) return BadRequest(Fail("Escreva algo antes de publicar."));
+        if (text.Length > MaxTextLength) return BadRequest(Fail("O post é longo demais."));
 
-    [HttpPut("{id:int}")]
-    public async Task<ActionResult> Put(int id, PostDto postDto)
-    {
-        try
-        {
-            Post obj = _mapper.Map<Post>(postDto);
-            _uof.PostRepository.Update(obj);
-            await _uof.CommitAsync();
+        // Autor sempre do token (o MemberId do corpo é ignorado)
+        var post = new Post { MemberId = memberId.Value, Text = text, CreatedAt = DateTime.UtcNow };
+        _uof.PostRepository.Create(post);
+        await _uof.CommitAsync();
 
-            if (id != obj.PostId)
-            {
-                _logger.LogWarning("Dados inválidos");
-                return BadRequest("Dados inválidos");
-            }
-
-            _response.Result = _mapper.Map<PostDto>(obj);
-        }
-        catch (Exception ex)
-        {
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-        }
-        return Ok(_response);
+        return Ok(new ResponseDto { Result = await _uof.PostRepository.GetDetailAsync(post.PostId, memberId) });
     }
 
     [HttpPatch("UpdatePartial/{postId:int}")]
-    public async Task<ActionResult> PatchMemberAsync(int postId, [FromBody] PostDto postDto)
+    public async Task<ActionResult> UpdatePartial(int postId, [FromBody] PostDto postDto)
     {
-        try
-        {
-            var post = await _uof.PostRepository.GetAsync(
-                m => m.PostId == postId,
-                includeProperties: null
-            );
+        var memberId = await CurrentMemberIdAsync();
+        var post = await _uof.PostRepository.GetAsync(p => p.PostId == postId);
+        if (post is null) return NotFound(Fail("Post não encontrado."));
+        if (memberId is null || post.MemberId != memberId.Value) return Forbid();
 
-            if (post == null)
-                return NotFound("Membro não encontrado");
+        var text = postDto.Text?.Trim();
+        if (string.IsNullOrEmpty(text)) return BadRequest(Fail("O post não pode ficar vazio."));
+        if (text.Length > MaxTextLength) return BadRequest(Fail("O post é longo demais."));
 
-            // 🔹 Patch parcial (somente campos enviados)
-            if (!string.IsNullOrWhiteSpace(postDto.Text))
-                post.Text = postDto.Text;
+        post.Text = text;
+        _uof.PostRepository.Update(post);
+        await _uof.CommitAsync();
 
-            _uof.PostRepository.Update(post);
-            await _uof.CommitAsync();
-
-            _response.Result = _mapper.Map<PostDto>(post);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao aplicar PATCH no memberId {memberId}", postId);
-            _response.IsSuccess = false;
-            _response.Message = ex.Message;
-        }
-
-        return Ok(_response);
+        return Ok(new ResponseDto { Result = await _uof.PostRepository.GetDetailAsync(postId, memberId) });
     }
 
+    /// <summary>Curte/descurte o post para o colaborador do token e devolve o estado atualizado.</summary>
     [HttpPatch("ToggleLikeAsync/{postId:int}")]
-    public async Task<ActionResult> ToggleLikeAsync(
-    int postId,
-    [FromBody] CreateLikeDto dto)
+    public async Task<ActionResult> ToggleLikeAsync(int postId)
     {
+        var memberId = await CurrentMemberIdAsync();
+        if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+
+        var post = await _db.posts.AsNoTracking().FirstOrDefaultAsync(p => p.PostId == postId);
+        if (post is null) return NotFound(Fail("Post não encontrado."));
+
+        var existing = await _db.postLikes.FirstOrDefaultAsync(l => l.PostId == postId && l.MemberId == memberId.Value);
+        var liked = existing is null;
+        if (liked)
+        {
+            _db.postLikes.Add(new PostLike { PostId = postId, MemberId = memberId.Value, CreatedAt = DateTime.UtcNow });
+        }
+        else
+        {
+            _db.postLikes.Remove(existing!);
+        }
+
         try
         {
-            var existingLike = await _uof.PostLikeRepository.GetAsync(
-                l => l.PostId == postId && l.MemberId == dto.MemberId
-            );
-
-            if (existingLike == null)
-            {
-                _uof.PostLikeRepository.Create(new PostLike
-                {
-                    PostId = postId,
-                    MemberId = dto.MemberId
-                });
-            }
-            else
-            {
-                _uof.PostLikeRepository.Delete(existingLike);
-            }
-
-            await _uof.CommitAsync();
-
-            var totalLikes = await _uof.PostLikeRepository.CountAsync(
-                l => l.PostId == postId
-            );
-
-            var post = await _uof.PostRepository.GetAsync(
-                p => p.PostId == postId
-            );
-
-            if (post == null)
-                return NotFound();
-
-            var postDto = _mapper.Map<PostDto>(post);
-            postDto.TotalLikes = totalLikes;
-
-            return Ok(postDto);
+            await _db.SaveChangesAsync();
         }
-        catch (Exception ex)
+        catch (DbUpdateException)
         {
-            _logger.LogError(ex, "Erro ao curtir post {PostId}", postId);
-            Console.WriteLine(ex);
-            return StatusCode(500, "Erro interno ao processar like.");
+            // Clique duplo simultâneo: o índice único (PostId, MemberId) mantém uma única curtida
+            liked = false;
         }
+
+        var state = new LikeStateDto
+        {
+            TotalLikes = await _db.postLikes.CountAsync(l => l.PostId == postId),
+            LikedByMe = await _db.postLikes.AnyAsync(l => l.PostId == postId && l.MemberId == memberId.Value),
+        };
+
+        if (liked)
+        {
+            await NotifyAuthorAsync(post.MemberId, memberId.Value, name => $"{name} curtiu seu post.", "post", $"/post/{postId}");
+        }
+
+        return Ok(new ResponseDto { Result = state });
     }
 
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
-        try
-        {
-            Post obj = await _uof.PostRepository.GetAsync(c => c.PostId == id);
+        var memberId = await CurrentMemberIdAsync();
+        var post = await _uof.PostRepository.GetAsync(p => p.PostId == id);
+        if (post is null) return NotFound(Fail("Post não encontrado."));
+        if (memberId is null || post.MemberId != memberId.Value) return Forbid();
 
+        // Comentários do post não têm FK em cascata: remove junto
+        var comments = await _db.comments.Where(c => c.PostId == id).ToListAsync();
+        _db.comments.RemoveRange(comments);
+        _uof.PostRepository.Delete(post);
+        await _uof.CommitAsync();
 
-            if (obj is null)
-            {
-                _logger.LogWarning($"Objeto não Encontrado ou não existe");
-                return NotFound("Objeto não existe...");
-            }
-
-            var objExcluido = _uof.PostRepository.Delete(obj);
-            await _uof.CommitAsync();
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"Erro interno ao tentar deletar: {ex.Message}");
-        }
-
-        return Ok(_response);
+        return Ok(new ResponseDto());
     }
 
-
-    private ActionResult<IEnumerable<Post>> FetchPosts(PagedList<Post> posts)
+    private void WritePagination<T>(PagedList<T> page) where T : class
     {
-        var metadata = new
+        Response.Headers["X-Pagination"] = JsonSerializer.Serialize(new
         {
-            posts.TotalCount,
-            posts.PageSize,
-            posts.CurrentPage,
-            posts.TotalPages,
-            posts.HasNext,
-            posts.HasPrevious
-        };
-
-        Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
-
-        _response.Result = posts;
-        return Ok(_response);
+            page.TotalCount,
+            page.PageSize,
+            page.CurrentPage,
+            page.TotalPages,
+            page.HasNext,
+            page.HasPrevious,
+        });
     }
-
 }

@@ -53,6 +53,20 @@ public partial class Program
                 });
         });
 
+        // Portal (Vite em desenvolvimento e servidor interno): a consulta das escalas é pública
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("DefaultPolicy", policy =>
+            {
+                policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                        ?? new[] { "http://localhost:5173", "http://10.11.10.5:31" })
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials()
+                      .WithExposedHeaders("X-Pagination");
+            });
+        });
+
         builder.AddAppAuthentication();
 
         builder.Services.AddAuthorization();
@@ -67,6 +81,7 @@ public partial class Program
         }
 
         app.UseHttpsRedirection();
+        app.UseCors("DefaultPolicy");
         app.UseAuthentication();
         app.UseAuthorization();
 

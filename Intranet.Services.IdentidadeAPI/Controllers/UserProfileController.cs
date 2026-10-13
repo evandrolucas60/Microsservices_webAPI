@@ -2,6 +2,8 @@
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,21 +11,40 @@ namespace Intranet.Services.IdentidadeAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class UserProfileController : ControllerBase
 {
+    // Apenas imagens: o arquivo é servido publicamente pela URL gravada no perfil
+    private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    };
+    private const long MaxImageBytes = 5 * 1024 * 1024;
+
     private readonly IUnityOfWork _uof;
     private readonly ILogger<UserProfileController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IOwnershipChecker _ownership;
     private ResponseDto _response;
     private IMapper _mapper;
 
-    public UserProfileController(IUnityOfWork uof, ILogger<UserProfileController> logger, IMapper mapper, IConfiguration configuration)
+    public UserProfileController(IUnityOfWork uof, ILogger<UserProfileController> logger, IMapper mapper, IConfiguration configuration, IOwnershipChecker ownership)
     {
         _uof = uof;
         _logger = logger;
         _response = new ResponseDto();
         _mapper = mapper;
         _configuration = configuration;
+        _ownership = ownership;
+    }
+
+    private static string? ValidateImage(IFormFile? file)
+    {
+        if (file is null || file.Length == 0) return null;
+        if (file.Length > MaxImageBytes) return "A imagem deve ter no máximo 5 MB.";
+        if (!AllowedImageExtensions.Contains(Path.GetExtension(file.FileName))) return "Envie uma imagem JPG, PNG, GIF ou WEBP.";
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) return "O arquivo enviado não é uma imagem.";
+        return null;
     }
 
     [HttpGet]
@@ -163,6 +184,11 @@ public class UserProfileController : ControllerBase
     Guid profileId,
     [FromForm] UpdatePartialUserProfileDto dto)
     {
+        if (!await _ownership.OwnsProfileAsync(User, profileId)) return Forbid();
+
+        var imageError = ValidateImage(dto.ProfilePicture) ?? ValidateImage(dto.CoverPhoto);
+        if (imageError is not null) return BadRequest(imageError);
+
         var profile = await _uof.ProfileRepository
             .GetAsync(p => p.ProfileId == profileId);
 

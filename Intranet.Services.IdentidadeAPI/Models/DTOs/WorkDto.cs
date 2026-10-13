@@ -1,4 +1,4 @@
-﻿namespace Intranet.Services.IdentidadeAPI.Models.DTOs;
+namespace Intranet.Services.IdentidadeAPI.Models.DTOs;
 
 public class WorkDto
 {
@@ -8,9 +8,10 @@ public class WorkDto
 
     public string Company { get; set; }
     public string Location { get; set; }
-    public DateTime AdmissionDate { get; set; }
+    public DateTime? AdmissionDate { get; set; }
     public string Registration { get; set; }
     public string Description { get; set; }
     public string Department { get; set; }
+    public string? Ramal { get; set; }
     public Guid MemberId { get; set; }
 }

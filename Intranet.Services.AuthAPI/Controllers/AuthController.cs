@@ -1,6 +1,8 @@
 ﻿using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Models.DTOs;
 using Intranet.Services.AuthAPI.Service.IService;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
@@ -29,6 +31,7 @@ public class AuthController : ControllerBase
 
     [HttpPost]
     [Route("CreateRole")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = Program.AdminRole)]
     public async Task<IActionResult> CreateRole(string roleName)
     {
         var roleExists = await _roleManager.RoleExistsAsync(roleName);
@@ -70,6 +73,7 @@ public class AuthController : ControllerBase
 
     [HttpPost]
     [Route("AddUserToRole")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = Program.AdminRole)]
     public async Task<IActionResult> AddUserToRole(string email, string roleName)
     {
         var user = await _userManager.FindByEmailAsync(email);
@@ -224,6 +228,26 @@ public class AuthController : ControllerBase
     [Route("revoke/{id}")]
     public async Task<IActionResult> Revoke(string id)
     {
+        // Aceita access token expirado (assinatura válida): o logout costuma acontecer
+        // justamente após a expiração e precisa invalidar o refresh token mesmo assim.
+        var header = Request.Headers.Authorization.ToString();
+        if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return Unauthorized();
+
+        ClaimsPrincipal caller;
+        try
+        {
+            caller = _tokenService.GetClaimsPrincipalFromExpiredToken(header["Bearer ".Length..].Trim(), _configuration);
+        }
+        catch (Exception)
+        {
+            return Unauthorized();
+        }
+
+        // Só o próprio usuário (claim "id") ou um Admin pode encerrar a sessão
+        var callerId = caller.FindFirst("id")?.Value;
+        if (!string.Equals(callerId, id, StringComparison.OrdinalIgnoreCase) && !caller.IsInRole(Program.AdminRole))
+            return StatusCode(StatusCodes.Status403Forbidden);
+
         var user = await _userManager.FindByIdAsync(id);
 
         if (user == null) return BadRequest("Invaild username");

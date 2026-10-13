@@ -2,25 +2,30 @@
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Intranet.Services.IdentidadeAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class WorkController : ControllerBase
 {
     private readonly IUnityOfWork _uof;
     private readonly ILogger<WorkController> _logger;
+    private readonly IOwnershipChecker _ownership;
     private ResponseDto _response;
     private IMapper _mapper;
 
-    public WorkController(IUnityOfWork uof, ILogger<WorkController> logger, IMapper mapper)
+    public WorkController(IUnityOfWork uof, ILogger<WorkController> logger, IMapper mapper, IOwnershipChecker ownership)
     {
         _uof = uof;
         _logger = logger;
         _response = new ResponseDto();
         _mapper = mapper;
+        _ownership = ownership;
     }
 
     [HttpGet]
@@ -88,13 +93,38 @@ public class WorkController : ControllerBase
         return Ok(_response);
     }
 
+    // "2020-03-01" chega como DateTime sem fuso; o Npgsql exige UTC em colunas timestamptz
+    private static DateTime? ToUtcDate(DateTime? value) =>
+        value.HasValue ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc) : null;
+
+    /// <summary>
+    /// Cria o trabalho do membro ou, se já existir (um por membro), atualiza o existente.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult> Post([FromBody] WorkDto workDto)
     {
+        if (!await _ownership.OwnsMemberAsync(User, workDto.MemberId)) return Forbid();
+
         try
         {
-            Work obj = _mapper.Map<Work>(workDto);
-            var work = _uof.WorkRepository.Create(obj);
+            var existing = await _uof.WorkRepository.GetAsync(w => w.MemberId == workDto.MemberId);
+            Work obj;
+            if (existing is null)
+            {
+                obj = _mapper.Map<Work>(workDto);
+                obj.WorkId = 0;
+                obj.AdmissionDate = ToUtcDate(obj.AdmissionDate);
+                _uof.WorkRepository.Create(obj);
+            }
+            else
+            {
+                var workId = existing.WorkId;
+                _mapper.Map(workDto, existing);
+                existing.WorkId = workId;
+                existing.AdmissionDate = ToUtcDate(existing.AdmissionDate);
+                _uof.WorkRepository.Update(existing);
+                obj = existing;
+            }
             await _uof.CommitAsync();
 
             _response.Result = _mapper.Map<WorkDto>(obj);
@@ -111,17 +141,23 @@ public class WorkController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Put(int id, WorkDto workDto)
     {
+        // Valida antes de gravar (antes o id era conferido só depois do commit)
+        if (id != workDto.WorkId)
+        {
+            _logger.LogWarning("Dados inválidos");
+            return BadRequest("Dados inválidos");
+        }
+
+        // Precisa ser dono do registro atual e do membro informado (impede "mover" para outro membro)
+        if (!await _ownership.OwnsWorkAsync(User, id) || !await _ownership.OwnsMemberAsync(User, workDto.MemberId))
+            return Forbid();
+
         try
         {
             Work obj = _mapper.Map<Work>(workDto);
+            obj.AdmissionDate = ToUtcDate(obj.AdmissionDate);
             _uof.WorkRepository.Update(obj);
             await _uof.CommitAsync();
-
-            if (id != obj.WorkId)
-            {
-                _logger.LogWarning("Dados inválidos");
-                return BadRequest("Dados inválidos");
-            }
 
             _response.Result = _mapper.Map<WorkDto>(obj);
         }
@@ -136,6 +172,8 @@ public class WorkController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
+        if (!await _ownership.OwnsWorkAsync(User, id)) return Forbid();
+
         try
         {
             Work obj = await _uof.WorkRepository.GetAsync(c => c.WorkId == id);

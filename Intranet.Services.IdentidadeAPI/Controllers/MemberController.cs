@@ -2,6 +2,8 @@
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,19 +11,22 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class MemberController : ControllerBase
     {
         private readonly IUnityOfWork _uof;
         private readonly ILogger<MemberController> _logger;
+        private readonly IOwnershipChecker _ownership;
         private ResponseDto _response;
         private IMapper _mapper;
 
-        public MemberController(IUnityOfWork uof, ILogger<MemberController> logger, IMapper mapper)
+        public MemberController(IUnityOfWork uof, ILogger<MemberController> logger, IMapper mapper, IOwnershipChecker ownership)
         {
             _uof = uof;
             _logger = logger;
             _response = new ResponseDto();
             _mapper = mapper;
+            _ownership = ownership;
         }
 
         [HttpGet]
@@ -68,6 +73,9 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] MemberDto memberDto)
         {
+            // Só é possível criar o membro do próprio usuário (ou Admin)
+            if (!_ownership.IsUser(User, memberDto.UserId)) return Forbid();
+
             try
             {
                 Member obj = _mapper.Map<Member>(memberDto);
@@ -88,19 +96,24 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPut("{menberId:Guid}")]
         public async Task<ActionResult> Put(Guid menberId, MemberDto memberDto)
         {
+            if (menberId != memberDto.MemberId) return BadRequest("Dados inválidos");
+            if (!await _ownership.OwnsMemberAsync(User, menberId)) return Forbid();
+
             try
             {
-                Member obj = _mapper.Map<Member>(memberDto);
-                _uof.MemberRepository.Update(obj);
+                var existing = await _uof.MemberRepository.GetAsync(m => m.MemberId == menberId);
+                if (existing is null) return NotFound("Membro não encontrado");
+
+                // Vínculo com o usuário (UserId) não pode ser trocado pelo cliente
+                var userId = existing.UserId;
+                _mapper.Map(memberDto, existing);
+                existing.UserId = userId;
+                existing.MemberId = menberId;
+
+                _uof.MemberRepository.Update(existing);
                 await _uof.CommitAsync();
 
-                if (menberId != obj.MemberId)
-                {
-                    _logger.LogWarning("Dados inválidos");
-                    return BadRequest("Dados inválidos");
-                }
-
-                _response.Result = _mapper.Map<MemberDto>(obj);
+                _response.Result = _mapper.Map<MemberDto>(existing);
             }
             catch (Exception ex)
             {
@@ -113,6 +126,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPatch("UpdatePartial/{memberId:Guid}")]
         public async Task<ActionResult> PatchMemberAsync(Guid memberId, [FromBody] MemberDto memberDto)
         {
+            if (!await _ownership.OwnsMemberAsync(User, memberId)) return Forbid();
+
             try
             {
                 var member = await _uof.MemberRepository.GetAsync(
@@ -133,6 +148,9 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                 if (!string.IsNullOrWhiteSpace(memberDto.Phone))
                     member.Phone = memberDto.Phone;
 
+                if (memberDto.BirthDate.HasValue)
+                    member.BirthDate = memberDto.BirthDate;
+
                 _uof.MemberRepository.Update(member);
                 await _uof.CommitAsync();
 
@@ -152,6 +170,9 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpDelete("{memberId:Guid}")]
         public async Task<ActionResult> Delete(Guid memberId)
         {
+            // Excluir um colaborador é ação administrativa
+            if (!_ownership.IsAdmin(User)) return Forbid();
+
             try
             {
                 Member obj = await _uof.MemberRepository.GetAsync(c => c.MemberId == memberId);

@@ -3,30 +3,38 @@ using AutoMapper.Execution;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Intranet.Services.IdentidadeAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AddressController : ControllerBase
     {
         private readonly IUnityOfWork _uof;
         private readonly ILogger<AddressController> _logger;
+        private readonly IOwnershipChecker _ownership;
         private ResponseDto _response;
         private IMapper _mapper;
 
-        public AddressController(IUnityOfWork uof, ILogger<AddressController> logger, IMapper mapper)
+        public AddressController(IUnityOfWork uof, ILogger<AddressController> logger, IMapper mapper, IOwnershipChecker ownership)
         {
             _uof = uof;
             _logger = logger;
             _response = new ResponseDto();
             _mapper = mapper;
+            _ownership = ownership;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Address>>> GetAsync()
         {
+            // Endereços são dados pessoais: listagem geral só para Admin
+            if (!_ownership.IsAdmin(User)) return Forbid();
+
             try
             {
                 var objList = await _uof.AddressRepository.GetAllAsync();
@@ -44,6 +52,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Address>> GetAsync(int id)
         {
+            if (!await _ownership.OwnsAddressAsync(User, id)) return Forbid();
+
             try
             {
                 var obj = await _uof.AddressRepository.GetAsync(c => c.AddressId == id);
@@ -68,6 +78,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpGet("GetAddressbyMember/{memberId:Guid}")]
         public async Task<ActionResult<Address>> GetByProfileAsync(Guid memberId)
         {
+            if (!await _ownership.OwnsMemberAsync(User, memberId)) return Forbid();
+
             try
             {
                 var obj = await _uof.AddressRepository.GetAsync(c => c.MemberId == memberId);
@@ -92,6 +104,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] AddressDto addressDto)
         {
+            if (!await _ownership.OwnsMemberAsync(User, addressDto.MemberId)) return Forbid();
+
             try
             {
                 Address obj = _mapper.Map<Address>(addressDto);
@@ -112,17 +126,21 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Put(int id, AddressDto addressDto)
         {
+            // Valida antes de gravar (antes o id era conferido só depois do commit)
+            if (id != addressDto.AddressId)
+            {
+                _logger.LogWarning("Dados inválidos");
+                return BadRequest("Dados inválidos");
+            }
+
+            if (!await _ownership.OwnsAddressAsync(User, id) || !await _ownership.OwnsMemberAsync(User, addressDto.MemberId))
+                return Forbid();
+
             try
             {
                 Address obj = _mapper.Map<Address>(addressDto);
                 _uof.AddressRepository.Update(obj);
                 await _uof.CommitAsync();
-
-                if (id != obj.AddressId)
-                {
-                    _logger.LogWarning("Dados inválidos");
-                    return BadRequest("Dados inválidos");
-                }
 
                 _response.Result = _mapper.Map<AddressDto>(obj);
             }
@@ -137,6 +155,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete(int id)
         {
+            if (!await _ownership.OwnsAddressAsync(User, id)) return Forbid();
+
             try
             {
                 Address obj = await _uof.AddressRepository.GetAsync(c => c.AddressId == id);

@@ -22,6 +22,156 @@ namespace Intranet.Services.ConteudoAPI.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Article", b =>
+                {
+                    b.Property<int>("ArticleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ArticleId"));
+
+                    b.Property<string>("AuthorUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("NewsletterQueuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VideoUrl")
+                        .HasColumnType("text");
+
+                    b.HasKey("ArticleId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("articles");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.ArticleComment", b =>
+                {
+                    b.Property<int>("ArticleCommentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ArticleCommentId"));
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("ArticleCommentId");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("articleComments");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.ArticleImage", b =>
+                {
+                    b.Property<Guid>("ArticleImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("ArticleImageId");
+
+                    b.ToTable("articleImages");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.ArticleLike", b =>
+                {
+                    b.Property<int>("ArticleLikeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ArticleLikeId"));
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("ArticleLikeId");
+
+                    b.HasIndex("ArticleId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("articleLikes");
+                });
+
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Comment", b =>
                 {
                     b.Property<int>("CommentId")
@@ -66,7 +216,8 @@ namespace Intranet.Services.ConteudoAPI.Migrations
 
                     b.HasKey("CommentLikeId");
 
-                    b.HasIndex("CommentId");
+                    b.HasIndex("CommentId", "MemberId")
+                        .IsUnique();
 
                     b.ToTable("commentLikes");
                 });
@@ -112,9 +263,32 @@ namespace Intranet.Services.ConteudoAPI.Migrations
 
                     b.HasKey("PostLikeId");
 
-                    b.HasIndex("PostId");
+                    b.HasIndex("PostId", "MemberId")
+                        .IsUnique();
 
                     b.ToTable("postLikes");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.ArticleComment", b =>
+                {
+                    b.HasOne("Intranet.Services.ConteudoAPI.Models.Article", "Article")
+                        .WithMany("Comments")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.ArticleLike", b =>
+                {
+                    b.HasOne("Intranet.Services.ConteudoAPI.Models.Article", "Article")
+                        .WithMany("Likes")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
                 });
 
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.CommentLike", b =>
@@ -137,6 +311,13 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Article", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Likes");
                 });
 
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Comment", b =>

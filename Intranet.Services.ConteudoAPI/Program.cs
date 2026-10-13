@@ -4,6 +4,7 @@ using Intranet.Services.ConteudoAPI.Data;
 using Intranet.Services.ConteudoAPI.Extensions;
 using Intranet.Services.ConteudoAPI.Repository;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
+using Intranet.Services.ConteudoAPI.Services;
 using Intranet.Services.ConteudoAPI.Utility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,8 @@ public partial class Program
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
             options.UseNpgsql(connectionString);
+            // Migrações escritas à mão (sem Designer): o snapshot é mantido manualmente
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -30,6 +33,25 @@ public partial class Program
         builder.Services.AddScoped<ICommentLikeRepository, CommentLikeRepository>();
         builder.Services.AddScoped<BackendApiAuthenticationHttpClientHandler>();
         builder.Services.AddHttpContextAccessor();
+
+        // Newsletter dos artigos (NotificacaoAPI)
+        builder.Services.AddHttpClient(NewsletterClient.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:NotificacaoAPI"] ?? "https://localhost:7009/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        }).AcceptLocalDevCertificate(builder.Environment);
+        builder.Services.AddScoped<INewsletterClient, NewsletterClient>();
+        // Notificações de curtidas/comentários (mesmo HttpClient do NotificacaoAPI)
+        builder.Services.AddScoped<INotificationClient, NotificationClient>();
+
+        // Autoria dos artigos/comentários resolvida pelo token (IdentidadeAPI)
+        builder.Services.AddMemoryCache();
+        builder.Services.AddHttpClient(MemberResolver.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:IdentidadeAPI"] ?? "https://localhost:7004/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        }).AcceptLocalDevCertificate(builder.Environment);
+        builder.Services.AddScoped<IMemberResolver, MemberResolver>();
 
         // AutoMapper 13+ já inclui a integração com DI (sem AutoMapper.Extensions.Microsoft.DependencyInjection)
         builder.Services.AddAutoMapper(cfg => { }, typeof(MappingConfig));

@@ -2,25 +2,30 @@
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Intranet.Services.IdentidadeAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EducationController : ControllerBase
     {
         private readonly IUnityOfWork _uof;
         private readonly ILogger<EducationController> _logger;
+        private readonly IOwnershipChecker _ownership;
         private ResponseDto _response;
         private IMapper _mapper;
 
-        public EducationController(IUnityOfWork uof, ILogger<EducationController> logger, IMapper mapper)
+        public EducationController(IUnityOfWork uof, ILogger<EducationController> logger, IMapper mapper, IOwnershipChecker ownership)
         {
             _uof = uof;
             _logger = logger;
             _response = new ResponseDto();
             _mapper = mapper;
+            _ownership = ownership;
         }
 
         [HttpGet]
@@ -93,11 +98,24 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                 if (educationsDto.Any(e => e.ProfileId == Guid.Empty))
                     return BadRequest("Todas as educações devem possuir ProfileId válido.");
 
+                foreach (var profileId in educationsDto.Select(e => e.ProfileId).Distinct())
+                {
+                    if (!await _ownership.OwnsProfileAsync(User, profileId)) return Forbid();
+                }
+
+                // Itens existentes precisam pertencer a um profile do usuário
+                foreach (var educationId in educationsDto.Where(e => e.EducationId != 0).Select(e => e.EducationId))
+                {
+                    if (!await _ownership.OwnsEducationAsync(User, educationId)) return Forbid();
+                }
+
                 var result = new List<EducationDto>();
 
                 foreach (var dto in educationsDto)
                 {
                     var entity = _mapper.Map<Education>(dto);
+                    entity.FromYear = ToUtcDate(entity.FromYear);
+                    entity.ToYear = ToUtcDate(entity.ToYear);
 
                     entity.ProfileId = dto.ProfileId;
 
@@ -130,9 +148,13 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] EducationDto educationDto)
         {
+            if (!await _ownership.OwnsProfileAsync(User, educationDto.ProfileId)) return Forbid();
+
             try
             {
                 Education obj = _mapper.Map<Education>(educationDto);
+                obj.FromYear = ToUtcDate(obj.FromYear);
+                obj.ToYear = ToUtcDate(obj.ToYear);
                 var edu = _uof.EducationRepository.Create(obj);
                 await _uof.CommitAsync();
 
@@ -152,6 +174,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             Guid profileId,
             [FromBody] List<EducationDto> educationsDto)
         {
+            if (!await _ownership.OwnsProfileAsync(User, profileId)) return Forbid();
+
             try
             {
                 if (educationsDto == null || !educationsDto.Any())
@@ -170,6 +194,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                 foreach (var dto in educationsDto)
                 {
                     var entity = _mapper.Map<Education>(dto);
+                    entity.FromYear = ToUtcDate(entity.FromYear);
+                    entity.ToYear = ToUtcDate(entity.ToYear);
 
                     entity.ProfileId = profileId;
 
@@ -207,6 +233,8 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete(int id)
         {
+            if (!await _ownership.OwnsEducationAsync(User, id)) return Forbid();
+
             try
             {
                 Education obj = await _uof.EducationRepository.GetAsync(c => c.EducationId == id);
@@ -229,28 +257,55 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
         }
 
 
+        // Datas do formulário ("2020-01-01") chegam sem fuso; o Npgsql exige UTC em colunas timestamptz
+        private static DateTime ToUtcDate(DateTime value) =>
+            DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
+
         [HttpPatch("profile/{profileId:Guid}")]
         public async Task<ActionResult> PatchEducationsByProfile( Guid profileId, [FromBody] List<EducationPatchByProfileDto> patchList)
         {
+            if (!await _ownership.OwnsProfileAsync(User, profileId)) return Forbid();
+
             try
             {
-                // Busca todas as educations do profile
-                var educations = await _uof.EducationRepository.GetAllAsync();
+                if (patchList == null || !patchList.Any())
+                    return BadRequest("Lista de educações vazia.");
 
-                var profileEducations = educations
-                    .Where(e => e.ProfileId == profileId)
+                // Busca apenas as educations do profile (no banco, não em memória)
+                var profileEducations = (await _uof.EducationRepository
+                    .GetAllAsync(e => e.ProfileId == profileId))
                     .ToList();
-
-                if (!profileEducations.Any())
-                    return NotFound("Nenhuma education encontrada para este profile.");
 
                 foreach (var patch in patchList)
                 {
                     var entity = profileEducations
                         .FirstOrDefault(e => e.EducationId == patch.EducationId);
 
+                    // EducationId 0 (ou inexistente no profile) = nova formação.
+                    // Antes respondia 404 quando o profile ainda não tinha nenhuma.
                     if (entity == null)
+                    {
+                        if (string.IsNullOrWhiteSpace(patch.School) ||
+                            string.IsNullOrWhiteSpace(patch.Degree) ||
+                            !patch.FromYear.HasValue ||
+                            !patch.ToYear.HasValue)
+                        {
+                            return BadRequest("Para incluir uma formação informe instituição, curso, início e término.");
+                        }
+
+                        entity = new Education
+                        {
+                            ProfileId = profileId,
+                            School = patch.School,
+                            Degree = patch.Degree,
+                            FromYear = ToUtcDate(patch.FromYear.Value),
+                            ToYear = ToUtcDate(patch.ToYear.Value),
+                            Description = patch.Description ?? string.Empty,
+                        };
+                        _uof.EducationRepository.Create(entity);
+                        profileEducations.Add(entity);
                         continue;
+                    }
 
                     if (patch.School != null)
                         entity.School = patch.School;
@@ -259,10 +314,10 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                         entity.Degree = patch.Degree;
 
                     if (patch.FromYear.HasValue)
-                        entity.FromYear = patch.FromYear.Value;
+                        entity.FromYear = ToUtcDate(patch.FromYear.Value);
 
                     if (patch.ToYear.HasValue)
-                        entity.ToYear = patch.ToYear.Value;
+                        entity.ToYear = ToUtcDate(patch.ToYear.Value);
 
                     if (patch.Description != null)
                         entity.Description = patch.Description;

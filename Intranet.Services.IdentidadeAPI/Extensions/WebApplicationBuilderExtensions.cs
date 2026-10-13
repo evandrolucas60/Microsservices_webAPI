@@ -22,6 +22,9 @@ public static class WebApplicationBuilderExtensions
             x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
         }).AddJwtBearer(x =>
         {
+            // Guarda o token para que GetTokenAsync("access_token") funcione no
+            // BackendApiAuthenticationHttpClientHandler (chamadas internas a Work/Education)
+            x.SaveToken = true;
             x.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,

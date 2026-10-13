@@ -32,6 +32,7 @@ public partial class Program
         builder.Services.AddScoped<IWorkService, WorkService>();
         builder.Services.AddScoped<IEducationService, EducationService>();
         builder.Services.AddScoped<BackendApiAuthenticationHttpClientHandler>();
+        builder.Services.AddScoped<IOwnershipChecker, OwnershipChecker>();
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddHttpClient("Work", u => u.BaseAddress =
@@ -83,7 +84,7 @@ public partial class Program
                        .AllowAnyMethod()
                        .AllowAnyHeader()
                        .AllowCredentials()
-                       .WithExposedHeaders("Authorization");
+                       .WithExposedHeaders("Authorization", "X-Pagination");
             });
         });
 

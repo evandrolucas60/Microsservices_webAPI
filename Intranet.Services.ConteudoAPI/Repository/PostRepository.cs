@@ -1,4 +1,4 @@
-﻿using Intranet.Services.ConteudoAPI.Data;
+using Intranet.Services.ConteudoAPI.Data;
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Pagination;
@@ -12,58 +12,51 @@ public class PostRepository : Repository<Post>, IPostRepository
 {
     public PostRepository(AppDbContext context) : base(context) { }
 
-    public async Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(Guid memberId)
+    // Projeção única usada por todas as listagens: contagens e "já curti" calculados no banco
+    private IQueryable<PostDto> Project(IQueryable<Post> query, Guid? viewerMemberId)
     {
-        return await _context.posts
-            .AsNoTracking()
-            .Where(p => p.MemberId == memberId)
-            .Select(p => new PostDto
-            {
-                PostId = p.PostId,
-                MemberId = p.MemberId,
-                Text = p.Text,
-                CreatedAt = p.CreatedAt,
-                TotalLikes = p.Likes.Count()
-            })
-            .OrderByDescending(p => p.CreatedAt)
+        var viewer = viewerMemberId ?? Guid.Empty;
+        return query.Select(p => new PostDto
+        {
+            PostId = p.PostId,
+            MemberId = p.MemberId,
+            Text = p.Text,
+            CreatedAt = p.CreatedAt,
+            TotalLikes = p.Likes.Count,
+            TotalComments = _context.comments.Count(c => c.PostId == p.PostId),
+            LikedByMe = viewer != Guid.Empty && p.Likes.Any(l => l.MemberId == viewer),
+        });
+    }
+
+    public async Task<PagedList<PostDto>> GetFeedAsync(PostsParametersFilterDate parameters, Guid? viewerMemberId)
+    {
+        var query = _context.posts.AsNoTracking().AsQueryable();
+
+        if (parameters.CreatedAt != default)
+        {
+            // Dia inteiro em UTC (antes filtrava em memória após carregar a tabela toda)
+            var start = DateTime.SpecifyKind(parameters.CreatedAt.Date, DateTimeKind.Utc);
+            var end = start.AddDays(1);
+            query = query.Where(p => p.CreatedAt >= start && p.CreatedAt < end);
+        }
+
+        var pageNumber = Math.Max(parameters.PageNumber, 1);
+        var pageSize = Math.Max(parameters.PageSize, 1);
+
+        var total = await query.CountAsync();
+        var items = await Project(query.OrderByDescending(p => p.CreatedAt), viewerMemberId)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
-    }
-    public async Task<PagedList<Post>> GetPostsFilterDateAsync(PostsParametersFilterDate postsParametersFilterDate)
-    {
-        var posts = await GetAllAsync();
 
-        if (postsParametersFilterDate.CreatedAt != default(DateTime))
-        {
-            DateTime postsFilter = postsParametersFilterDate.CreatedAt;
-            posts = posts.Where(p => p.CreatedAt.Date == postsFilter.Date);
-        }
-
-        var postsFiltered = PagedList<Post>.toPagedList(
-            posts.AsQueryable()
-            .OrderByDescending(p => p.CreatedAt),
-            postsParametersFilterDate.PageNumber,
-            postsParametersFilterDate.PageSize);
-
-        return postsFiltered;
+        return new PagedList<PostDto>(items, total, pageNumber, pageSize);
     }
 
-    public async Task<PagedList<Post>> GetPostsFilterTextAsync(PostsParametersFilterText postsParametersFilterText)
-    {
-        var posts = await GetAllAsync();
+    public Task<List<PostDto>> GetAllByMemberIdWithLikesAsync(Guid memberId, Guid? viewerMemberId) =>
+        Project(_context.posts.AsNoTracking().Where(p => p.MemberId == memberId).OrderByDescending(p => p.CreatedAt), viewerMemberId)
+            .ToListAsync();
 
-        if (!string.IsNullOrEmpty(postsParametersFilterText.Text))
-        {
-            string textFilter = postsParametersFilterText.Text;
-            posts = posts.Where(p => p.Text.IndexOf(textFilter,
-                StringComparison.OrdinalIgnoreCase) >= 0);
-        }
-
-        var postsFiltered = PagedList<Post>.toPagedList(
-            posts.AsQueryable()
-            .OrderBy(p => p.Text),
-            postsParametersFilterText.PageNumber,
-            postsParametersFilterText.PageSize);
-
-        return postsFiltered;
-    }
+    public Task<PostDto?> GetDetailAsync(int postId, Guid? viewerMemberId) =>
+        Project(_context.posts.AsNoTracking().Where(p => p.PostId == postId), viewerMemberId)
+            .FirstOrDefaultAsync();
 }

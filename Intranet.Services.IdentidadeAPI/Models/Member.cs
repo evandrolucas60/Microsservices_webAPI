@@ -10,4 +10,7 @@ public class Member : Person
     [Required]
     [DisplayFormat(DataFormatString = "{0:dd-MM-yyyy}", ApplyFormatInEditMode = true)]
     public DateTime dateOfMembership { get; set; }
+
+    // Data de nascimento informada pelo próprio colaborador (usada na lista de aniversariantes)
+    public DateOnly? BirthDate { get; set; }
 }

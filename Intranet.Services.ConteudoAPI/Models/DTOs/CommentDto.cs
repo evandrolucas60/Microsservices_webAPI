@@ -1,4 +1,4 @@
-﻿namespace Intranet.Services.ConteudoAPI.Models.DTOs;
+namespace Intranet.Services.ConteudoAPI.Models.DTOs;
 
 public class CommentDto
 {
@@ -8,5 +8,7 @@ public class CommentDto
     public int PostId { get; set; }
     public Guid MemberId { get; set; }
     public int TotalLikes { get; set; }
-}
 
+    /// <summary>Se o colaborador autenticado já curtiu (calculado pelo token).</summary>
+    public bool LikedByMe { get; set; }
+}

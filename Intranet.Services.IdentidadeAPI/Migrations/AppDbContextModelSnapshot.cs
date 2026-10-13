@@ -98,6 +98,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
@@ -114,6 +117,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("MemberId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("Members");
                 });
@@ -141,6 +147,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
 
                     b.HasKey("ProfileId");
 
+                    b.HasIndex("MemberId")
+                        .IsUnique();
+
                     b.HasIndex("WorkId");
 
                     b.ToTable("Profiles");
@@ -154,7 +163,7 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("WorkId"));
 
-                    b.Property<DateTime>("AdmissionDate")
+                    b.Property<DateTime?>("AdmissionDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Company")
@@ -176,6 +185,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                     b.Property<Guid>("MemberId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Ramal")
+                        .HasColumnType("text");
+
                     b.Property<string>("Registration")
                         .IsRequired()
                         .HasColumnType("text");
@@ -185,6 +197,9 @@ namespace Intranet.Services.IdentidadeAPI.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("WorkId");
+
+                    b.HasIndex("MemberId")
+                        .IsUnique();
 
                     b.ToTable("Works");
                 });

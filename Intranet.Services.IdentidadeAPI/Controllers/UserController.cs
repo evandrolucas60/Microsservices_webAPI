@@ -1,29 +1,45 @@
-﻿using AutoMapper;
+using AutoMapper;
+using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
 using Intranet.Services.IdentidadeAPI.Service.IService;
+using Intranet.Services.IdentidadeAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace Intranet.Services.IdentidadeAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class UserController : ControllerBase
 {
     private readonly IUnityOfWork _uof;
+    private readonly AppDbContext _db;
     private readonly IWorkService _workService;
     private readonly IEducationService _educationService;
+    private readonly IOwnershipChecker _ownership;
     private readonly IMapper _mapper;
     private ResponseDto _response;
     private readonly ILogger<UserController> _logger;
 
-    public UserController(IUnityOfWork unityOfWork, IWorkService workService, IEducationService educationService, IMapper mapper, ILogger<UserController> logger)
+    public UserController(
+        IUnityOfWork unityOfWork,
+        AppDbContext db,
+        IWorkService workService,
+        IEducationService educationService,
+        IOwnershipChecker ownership,
+        IMapper mapper,
+        ILogger<UserController> logger)
     {
         _uof = unityOfWork;
+        _db = db;
         _workService = workService;
         _educationService = educationService;
+        _ownership = ownership;
         _mapper = mapper;
         _response = new ResponseDto();
         _logger = logger;
@@ -38,22 +54,61 @@ public class UserController : ControllerBase
     private string? GetClaim(params string[] types) =>
         types.Select(t => User.FindFirst(t)?.Value).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
+    private static Work EmptyWork(Guid memberId) => new()
+    {
+        Title = string.Empty,
+        Company = string.Empty,
+        Location = string.Empty,
+        Registration = string.Empty,
+        Description = string.Empty,
+        Department = string.Empty,
+        AdmissionDate = null, // preenchida pelo colaborador em Configurações > Trabalho
+        MemberId = memberId,
+    };
+
+    /// <summary>
+    /// Salva uma entidade nova; se outra requisição simultânea já criou o registro
+    /// (violação de índice único), descarta a tentativa e devolve null para reler.
+    /// </summary>
+    private async Task<bool> TryCreateAsync(object entity)
+    {
+        try
+        {
+            await _uof.CommitAsync();
+            return true;
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogInformation(ex, "Registro criado por requisição concorrente; reaproveitando o existente.");
+            foreach (var entry in _db.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Perfil completo (inclui endereço e telefone): apenas o próprio usuário ou Admin.
+    /// Para ver o perfil de outro colaborador use GetMemberInfo.
+    /// </summary>
     [HttpGet("GetProfileInfo")]
     public async Task<ActionResult> GetProfileInfo(string userId)
     {
+        var isOwnUser = IsAuthenticatedAs(userId);
+        if (!isOwnUser && !_ownership.IsAdmin(User)) return Forbid();
+
         try
         {
             var member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId, includeProperties: "Address");
 
             // Usuários recém-cadastrados no AuthAPI ainda não têm Member/Profile:
             // cria os registros vazios na primeira consulta, apenas para o próprio usuário do token.
-            var isOwnUser = IsAuthenticatedAs(userId);
-
             if (member == null)
             {
                 if (!isOwnUser) return NotFound("Nenhum membro encontrado.");
 
-                member = new Models.Member
+                var newMember = new Models.Member
                 {
                     MemberId = Guid.NewGuid(),
                     UserId = userId,
@@ -61,9 +116,19 @@ public class UserController : ControllerBase
                     Name = GetClaim(ClaimTypes.Name, "unique_name") ?? GetClaim(ClaimTypes.Email, "email"),
                     dateOfMembership = DateTime.UtcNow,
                 };
-                _uof.MemberRepository.Create(member);
-                await _uof.CommitAsync();
-                _logger.LogInformation("Member criado automaticamente para o usuário {UserId}", userId);
+                _uof.MemberRepository.Create(newMember);
+
+                if (await TryCreateAsync(newMember))
+                {
+                    _logger.LogInformation("Member criado automaticamente para o usuário {UserId}", userId);
+                    member = newMember;
+                }
+                else
+                {
+                    // Índice único em Members.UserId: outra requisição criou primeiro
+                    member = await _uof.MemberRepository.GetAsync(m => m.UserId == userId, includeProperties: "Address");
+                    if (member == null) return StatusCode(500, "Não foi possível criar o membro.");
+                }
             }
 
             var profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
@@ -72,27 +137,27 @@ public class UserController : ControllerBase
             {
                 if (!isOwnUser) return NotFound("Profile não encontrado");
 
-                // Profiles.WorkId é obrigatório no schema atual: cria um Work vazio junto
-                // (o EF insere o Work antes e preenche o WorkId do Profile).
-                profile = new UserProfile
+                // Profiles.WorkId é obrigatório no schema atual: reaproveita o Work do membro
+                // ou cria um vazio junto (o EF insere o Work antes e preenche o WorkId).
+                var existingWork = await _uof.WorkRepository.GetAsync(w => w.MemberId == member.MemberId);
+                var newProfile = new UserProfile
                 {
                     ProfileId = Guid.NewGuid(),
                     MemberId = member.MemberId,
-                    Work = new Work
-                    {
-                        Title = string.Empty,
-                        Company = string.Empty,
-                        Location = string.Empty,
-                        Registration = string.Empty,
-                        Description = string.Empty,
-                        Department = string.Empty,
-                        AdmissionDate = DateTime.UtcNow,
-                        MemberId = member.MemberId,
-                    },
+                    Work = existingWork ?? EmptyWork(member.MemberId),
                 };
-                _uof.ProfileRepository.Create(profile);
-                await _uof.CommitAsync();
-                _logger.LogInformation("Profile criado automaticamente para o member {MemberId}", member.MemberId);
+                _uof.ProfileRepository.Create(newProfile);
+
+                if (await TryCreateAsync(newProfile))
+                {
+                    _logger.LogInformation("Profile criado automaticamente para o member {MemberId}", member.MemberId);
+                    profile = newProfile;
+                }
+                else
+                {
+                    profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
+                    if (profile == null) return StatusCode(500, "Não foi possível criar o perfil.");
+                }
             }
 
             var work = await _workService.GetWorkByMemberId(member.MemberId);
@@ -120,6 +185,7 @@ public class UserController : ControllerBase
         return Ok(_response);
     }
 
+    /// <summary>Perfil público de um colaborador (sem endereço), para usuários autenticados.</summary>
     [HttpGet("GetMemberInfo")]
     public async Task<ActionResult> GetProfilebyMemberId(Guid memberId)
     {
@@ -144,6 +210,7 @@ public class UserController : ControllerBase
             };
 
             user.Profile.Work = work;
+            user.Profile.Educations = educations;
 
             _response.Result = user;
         }
@@ -157,9 +224,13 @@ public class UserController : ControllerBase
         return Ok(_response);
     }
 
+    /// <summary>Cria/atualiza o cadastro completo: apenas do próprio usuário (ou Admin).</summary>
     [HttpPost("UserUpsert")]
     public async Task<ActionResult> UserUpsert([FromBody] UserDto userDto)
     {
+        if (userDto?.Member is null || userDto.Profile is null) return BadRequest("Dados inválidos.");
+        if (!_ownership.IsUser(User, userDto.Member.UserId)) return Forbid();
+
         var response = new ResponseDto();
 
         try
@@ -182,7 +253,15 @@ public class UserController : ControllerBase
             }
             else
             {
+                // Chave e vínculo com o usuário não são alterados pelo payload
+                var memberId = member.MemberId;
+                var userId = member.UserId;
+                var joined = member.dateOfMembership;
                 _mapper.Map(userDto.Member, member);
+                member.MemberId = memberId;
+                member.UserId = userId;
+                member.dateOfMembership = joined;
+
                 _uof.MemberRepository.Update(member);
                 await _uof.CommitAsync();
             }
@@ -199,13 +278,37 @@ public class UserController : ControllerBase
                 profile = _mapper.Map<UserProfile>(userDto.Profile);
                 profile.MemberId = member.MemberId;
                 profile.ProfileId = Guid.NewGuid();
+                profile.ProfileEducations = new List<Education>(); // gravadas no passo 4
+
+                // Profiles.WorkId é obrigatório: usa o Work do membro, o enviado ou um vazio
+                var existingWork = await _uof.WorkRepository.GetAsync(w => w.MemberId == member.MemberId);
+                if (existingWork != null)
+                {
+                    profile.Work = existingWork;
+                }
+                else
+                {
+                    profile.Work ??= EmptyWork(member.MemberId);
+                    profile.Work.WorkId = 0;
+                    profile.Work.MemberId = member.MemberId;
+                    profile.Work.AdmissionDate = profile.Work.AdmissionDate.HasValue
+                        ? DateTime.SpecifyKind(profile.Work.AdmissionDate.Value.Date, DateTimeKind.Utc)
+                        : null;
+                }
+
                 _uof.ProfileRepository.Create(profile);
                 await _uof.CommitAsync();
             }
             else
             {
+                var profileId = profile.ProfileId;
                 _mapper.Map(userDto.Profile, profile);
+                profile.ProfileId = profileId;
                 profile.MemberId = member.MemberId;
+                // Work e Educations são gravados pelos serviços próprios (passos 3 e 4);
+                // não deixa o mapeamento criar entidades novas pela navegação
+                profile.Work = null!;
+                profile.ProfileEducations = null!;
                 _uof.ProfileRepository.Update(profile);
                 await _uof.CommitAsync();
             }
@@ -216,7 +319,7 @@ public class UserController : ControllerBase
             if (userDto.Profile.Work != null)
             {
                 await _workService.UpsertWorkAsync(
-                    member.MemberId,          
+                    member.MemberId,
                     userDto.Profile.Work
                 );
             }
