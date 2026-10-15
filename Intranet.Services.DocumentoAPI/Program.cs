@@ -1,5 +1,7 @@
 using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.DocumentoAPI.Data;
 using Intranet.Services.DocumentoAPI.Extensions;
 using Intranet.Services.DocumentoAPI.Models.DTOs;
@@ -17,8 +19,10 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Logs estruturados
+        // Logs estruturados e mensageria (MassTransit + RabbitMQ): necessária para consultar
+        // bloqueios/restrições dos usuários definidos no painel de gestão (AuthAPI)
         builder.AddSharedSerilog();
+        builder.AddMessaging();
 
         // Add services to the container.
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -84,6 +88,8 @@ public partial class Program
         builder.AddAppAuthentication();
 
         builder.Services.AddAuthorization();
+        // Painel de gestão: política [Authorize(Policy = AdminPolicies.SuperAdmin)]
+        builder.AddAdminPolicies();
 
         var app = builder.Build();
 
@@ -100,6 +106,8 @@ public partial class Program
         app.UseSharedExceptionHandling();
 
         app.UseAuthentication();
+        // Usuários bloqueados pelo superAdmin recebem 403
+        app.UseSharedUserAccess();
         app.UseAuthorization();
 
         app.MapControllers();

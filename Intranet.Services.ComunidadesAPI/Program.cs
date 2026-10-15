@@ -1,6 +1,7 @@
 using BuildingBlocks.Shared.Logging;
 using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunidadesAPI.Data;
 using Intranet.Services.ComunidadesAPI.Extensions;
 using Intranet.Services.ComunidadesAPI.Services;
@@ -43,6 +44,8 @@ builder.Services.AddCors(options =>
 
 builder.AddAppAuthentication();
 builder.Services.AddAuthorization();
+// Painel de gestão: política [Authorize(Policy = AdminPolicies.SuperAdmin)]
+builder.AddAdminPolicies();
 
 var app = builder.Build();
 
@@ -59,6 +62,8 @@ app.UseCors("DefaultPolicy");
 app.UseSharedExceptionHandling();
 
 app.UseAuthentication();
+// Usuários bloqueados pelo superAdmin recebem 403
+app.UseSharedUserAccess();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -3,6 +3,7 @@ using BuildingBlocks.Shared.Http;
 using BuildingBlocks.Shared.Logging;
 using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.IdentidadeAPI.Consumers;
 using AutoMapper;
 using Intranet.Services.IdentidadeAPI;
@@ -46,6 +47,8 @@ public partial class Program
         builder.Services.AddScoped<IEducationRepository, EducationRepository>();
         builder.Services.AddScoped<IWorkService, WorkService>();
         builder.Services.AddScoped<IEducationService, EducationService>();
+        // Gestor direto / organograma (também usado pelos consumers de hierarquia)
+        builder.Services.AddScoped<IHierarquiaService, HierarquiaService>();
         builder.Services.AddScoped<BackendApiAuthenticationHttpClientHandler>();
         builder.Services.AddScoped<IOwnershipChecker, OwnershipChecker>();
         builder.Services.AddHttpContextAccessor();
@@ -108,6 +111,8 @@ public partial class Program
         builder.AddAppAuthentication();
 
         builder.Services.AddAuthorization();
+        // Painel de gestão: política [Authorize(Policy = AdminPolicies.SuperAdmin)]
+        builder.AddAdminPolicies();
 
         var app = builder.Build();
 
@@ -122,6 +127,8 @@ public partial class Program
         app.UseCors("DefaultPolicy");
         app.UseSharedExceptionHandling();
         app.UseAuthentication();
+        // Usuários bloqueados pelo superAdmin recebem 403
+        app.UseSharedUserAccess();
         app.UseAuthorization();
 
         app.MapControllers();

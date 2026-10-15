@@ -41,6 +41,22 @@ public abstract class ContentControllerBase : ControllerBase
 
     protected static ResponseDto Fail(string message) => new() { IsSuccess = false, Message = message };
 
+    /// <summary>Limite da lista de quem curtiu (as mais recentes primeiro).</summary>
+    protected const int MaxLikers = 500;
+
+    /// <summary>Monta a lista de quem curtiu com nome e foto (uma consulta ao IdentidadeAPI para todos).</summary>
+    protected async Task<List<LikerDto>> ToLikersAsync(IReadOnlyList<(Guid MemberId, DateTime CreatedAt)> likes)
+    {
+        var membros = await Members.GetMembersAsync(likes.Select(l => l.MemberId), HttpContext.RequestAborted);
+        return likes.Select(l => new LikerDto
+        {
+            MemberId = l.MemberId,
+            Nome = membros.TryGetValue(l.MemberId, out var m) ? m.Nome : null,
+            Foto = membros.TryGetValue(l.MemberId, out var f) ? f.Foto : null,
+            CurtidoEm = l.CreatedAt,
+        }).ToList();
+    }
+
     /// <summary>
     /// Notifica o autor do conteúdo sobre a interação de outro colaborador
     /// (não notifica quando o autor interage com o próprio conteúdo).

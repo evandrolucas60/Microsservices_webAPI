@@ -1,3 +1,5 @@
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunidadesAPI.Data;
 using Intranet.Services.ComunidadesAPI.Models;
 using Intranet.Services.ComunidadesAPI.Models.DTOs;
@@ -129,6 +131,7 @@ public class GroupsController : GroupControllerBase
 
     /// <summary>Cria um grupo; quem cria vira dono (owner) e primeiro membro.</summary>
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Grupos)]
     public async Task<ActionResult> Create([FromBody] GroupUpsertDto dto, CancellationToken ct)
     {
         var userId = CurrentUserId;
@@ -273,6 +276,7 @@ public class GroupsController : GroupControllerBase
     /// </summary>
     [HttpPost("{id:int}/requests")]
     [HttpPost("{id:int}/join")]
+    [RequerServico(ServicosRestringiveis.Grupos)]
     public async Task<ActionResult> RequestAccess(int id, CancellationToken ct)
     {
         var access = await GetAccessAsync(id, ct);

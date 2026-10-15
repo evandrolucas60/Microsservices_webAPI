@@ -19,4 +19,11 @@ public static class MiddlewareExtensions
     /// <summary>Tratamento de erros em JSON. Chame depois do UseCors.</summary>
     public static IApplicationBuilder UseSharedExceptionHandling(this IApplicationBuilder app) =>
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+    /// <summary>
+    /// Barra usuários bloqueados pelo superAdmin e inclui o UserId nos logs.
+    /// Chame depois do UseAuthentication (requer AddMessaging).
+    /// </summary>
+    public static IApplicationBuilder UseSharedUserAccess(this IApplicationBuilder app) =>
+        app.UseMiddleware<UserAccessMiddleware>();
 }

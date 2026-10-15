@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
     public DbSet<ArticleLike> articleLikes { get; set; }
     public DbSet<ArticleImage> articleImages { get; set; }
 
+    public DbSet<Denuncia> denuncias { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -70,6 +72,25 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             // Uma curtida por usuário por artigo
             b.HasIndex(l => new { l.ArticleId, l.UserId }).IsUnique();
+        });
+
+        // Denúncias (painel de gestão). Sem FK para o alvo: o conteúdo pode ser removido
+        // e a denúncia continua no histórico.
+        modelBuilder.Entity<Denuncia>(b =>
+        {
+            b.Property(d => d.Tipo).HasMaxLength(20).IsRequired();
+            b.Property(d => d.AlvoResumo).HasMaxLength(200);
+            b.Property(d => d.Motivo).HasMaxLength(20).IsRequired();
+            b.Property(d => d.Detalhes).HasMaxLength(1000);
+            b.Property(d => d.Status).HasMaxLength(20).IsRequired();
+            b.Property(d => d.ResolvidaPorUserId).HasMaxLength(450);
+            b.Property(d => d.Resolucao).HasMaxLength(1000);
+            b.HasIndex(d => new { d.Status, d.CriadaEm });
+            b.HasIndex(d => new { d.Tipo, d.AlvoId });
+            // Uma denúncia pendente por colaborador por conteúdo
+            b.HasIndex(d => new { d.DenuncianteMemberId, d.Tipo, d.AlvoId })
+                .IsUnique()
+                .HasFilter("\"Status\" = 'pendente'");
         });
     }
 }

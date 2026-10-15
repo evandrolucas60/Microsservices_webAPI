@@ -1,6 +1,7 @@
 using BuildingBlocks.Shared.Logging;
 using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunicacaoAPI.Data;
 using Intranet.Services.ComunicacaoAPI.Extensions;
 using Intranet.Services.ComunicacaoAPI.Services;
@@ -49,6 +50,8 @@ builder.Services.AddCors(options =>
 
 builder.AddAppAuthentication();
 builder.Services.AddAuthorization();
+// Painel de gestão: política [Authorize(Policy = AdminPolicies.SuperAdmin)]
+builder.AddAdminPolicies();
 
 var app = builder.Build();
 
@@ -68,6 +71,9 @@ app.UseSharedExceptionHandling();
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 
 app.UseAuthentication();
+// Usuários bloqueados pelo superAdmin recebem 403 (inclusive na conexão do /ws/chat,
+// que passa por aqui depois da autenticação pelo access_token)
+app.UseSharedUserAccess();
 app.UseAuthorization();
 
 app.MapControllers();

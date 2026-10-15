@@ -1,5 +1,8 @@
+using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Logging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
+using Intranet.Services.AuthAPI.Consumers;
 using Intranet.Services.AuthAPI.Data;
 using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Service;
@@ -7,12 +10,14 @@ using Intranet.Services.AuthAPI.Service.IService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 public partial class Program
 {
     public const string AdminRole = "Admin";
+    public const string SuperAdminRole = "superAdmin";
 
     private static void Main(string[] args)
     {
@@ -21,11 +26,17 @@ public partial class Program
         // Logs estruturados
         builder.AddSharedSerilog();
 
+        // Mensageria (MassTransit + RabbitMQ): publica os eventos de login/acesso e de restrições;
+        // responde às consultas de bloqueio/restrições dos demais serviços
+        builder.AddMessaging(x => x.AddConsumer<ObterRestricoesUsuarioConsumer>());
+
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
             options.UseNpgsql(connectionString);
+            // Migrations escritas à mão: diferenças cosméticas no snapshot não devem impedir a inicialização
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -53,6 +64,10 @@ public partial class Program
         // Add services to the container.
         builder.Services.AddControllers();
         builder.Services.AddScoped<ITokenService, TokenService>();
+
+        // Painel de gestão (superAdmin): política e regras de usuários/papéis/restrições
+        builder.AddAdminPolicies();
+        builder.Services.AddScoped<AdminUsuariosService>();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
@@ -65,7 +80,7 @@ public partial class Program
                        .AllowAnyMethod()
                        .AllowAnyHeader()
                        .AllowCredentials()
-                       .WithExposedHeaders("Authorization");
+                       .WithExposedHeaders("Authorization", "X-Pagination");
             });
         });
 
@@ -113,6 +128,12 @@ public partial class Program
             if (!await roleManager.RoleExistsAsync(AdminRole))
             {
                 await roleManager.CreateAsync(new IdentityRole(AdminRole));
+            }
+
+            // Papel do painel de gestão: só é criado (não é atribuído a ninguém automaticamente)
+            if (!await roleManager.RoleExistsAsync(SuperAdminRole))
+            {
+                await roleManager.CreateAsync(new IdentityRole(SuperAdminRole));
             }
 
             var emails = app.Configuration.GetSection("Bootstrap:AdminEmails").Get<string[]>() ?? Array.Empty<string>();

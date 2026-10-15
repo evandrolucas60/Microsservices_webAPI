@@ -1,4 +1,6 @@
 using System.Text.Json;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunicacaoAPI.Data;
 using Intranet.Services.ComunicacaoAPI.Models;
 using Intranet.Services.ComunicacaoAPI.Models.DTOs;
@@ -86,6 +88,7 @@ public class MessagesController : ControllerBase
 
     /// <summary>Envia uma mensagem (texto e/ou anexos) para um ou mais colaboradores.</summary>
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Mensagens)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxFiles * MaxFileBytes + 1024 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxFiles * MaxFileBytes + 1024 * 1024)]
@@ -161,37 +164,81 @@ public class MessagesController : ControllerBase
 
     // --------------------------------------------------------------- Leitura
 
-    /// <summary>Mensagens recebidas pelo colaborador autenticado.</summary>
+    /// <summary>
+    /// Caixa de entrada agrupada por conversa: uma linha por conversa (mensagem original + respostas),
+    /// com a mensagem recebida mais recente, o total de mensagens e quantas ainda não li.
+    /// </summary>
     [HttpGet("inbox")]
     public async Task<ActionResult> Inbox([FromQuery] bool unreadOnly = false, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
         var memberId = await CurrentMemberIdAsync(ct);
         if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+        var me = memberId.Value;
 
         pageNumber = Math.Max(pageNumber, 1);
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
-        var query = _db.messageRecipients.AsNoTracking().Where(r => r.MemberId == memberId.Value && r.DeletedAt == null);
-        if (unreadOnly) query = query.Where(r => r.ReadAt == null);
+        var conversas = _db.messageRecipients.AsNoTracking()
+            .Where(r => r.MemberId == me && r.DeletedAt == null)
+            .GroupBy(r => r.Message.ThreadId ?? r.MessageId)
+            .Select(g => new
+            {
+                ThreadId = g.Key,
+                UltimaMensagemId = g.Max(r => r.MessageId),
+                UltimaEm = g.Max(r => r.Message.CreatedAt),
+                NaoLidas = g.Count(r => r.ReadAt == null),
+            });
+        if (unreadOnly) conversas = conversas.Where(c => c.NaoLidas > 0);
 
-        var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderByDescending(r => r.Message.CreatedAt)
+        var total = await conversas.CountAsync(ct);
+        var pagina = await conversas
+            .OrderByDescending(c => c.UltimaEm)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .Select(r => new MessageSummaryDto
+            .ToListAsync(ct);
+
+        var ids = pagina.Select(c => c.UltimaMensagemId).ToList();
+        var threadIds = pagina.Select(c => c.ThreadId).ToList();
+        var mensagens = await _db.messageRecipients.AsNoTracking()
+            .Where(r => r.MemberId == me && ids.Contains(r.MessageId))
+            .Select(r => new
             {
-                MessageId = r.MessageId,
-                SenderMemberId = r.Message.SenderMemberId,
-                Preview = r.Message.MessageBody.Length > PreviewLength
-                    ? r.Message.MessageBody.Substring(0, PreviewLength)
-                    : r.Message.MessageBody,
-                CreatedAt = r.Message.CreatedAt,
-                ReadAt = r.ReadAt,
+                r.MessageId,
+                r.Message.SenderMemberId,
+                Preview = r.Message.MessageBody.Length > PreviewLength ? r.Message.MessageBody.Substring(0, PreviewLength) : r.Message.MessageBody,
+                r.Message.CreatedAt,
+                r.ReadAt,
                 RecipientsCount = r.Message.Recipients.Count,
                 MediaCount = r.Message.Media.Count,
+                IsReply = r.Message.ThreadId != null,
             })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(x => x.MessageId, ct);
+        // Total de mensagens de cada conversa (visíveis para mim: enviadas por mim ou recebidas)
+        var totais = await _db.messages.AsNoTracking()
+            .Where(m => threadIds.Contains(m.ThreadId ?? m.MessageId))
+            .Where(m => (m.SenderMemberId == me && m.SenderDeletedAt == null) || m.Recipients.Any(r => r.MemberId == me && r.DeletedAt == null))
+            .GroupBy(m => m.ThreadId ?? m.MessageId)
+            .Select(g => new { ThreadId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ThreadId, x => x.Count, ct);
+
+        var items = pagina.Where(c => mensagens.ContainsKey(c.UltimaMensagemId)).Select(c =>
+        {
+            var m = mensagens[c.UltimaMensagemId];
+            return new MessageSummaryDto
+            {
+                MessageId = m.MessageId,
+                SenderMemberId = m.SenderMemberId,
+                Preview = m.Preview,
+                CreatedAt = m.CreatedAt,
+                ReadAt = c.NaoLidas > 0 ? null : m.ReadAt,
+                RecipientsCount = m.RecipientsCount,
+                MediaCount = m.MediaCount,
+                ThreadId = c.ThreadId,
+                IsReply = m.IsReply,
+                ThreadCount = totais.GetValueOrDefault(c.ThreadId, 1),
+                UnreadCount = c.NaoLidas,
+            };
+        }).ToList();
 
         WritePagination(total, pageNumber, pageSize);
         return Ok(new ResponseDto { Result = items });
@@ -221,6 +268,8 @@ public class MessagesController : ControllerBase
                 CreatedAt = m.CreatedAt,
                 RecipientsCount = m.Recipients.Count,
                 MediaCount = m.Media.Count,
+                ThreadId = m.ThreadId ?? m.MessageId,
+                IsReply = m.ThreadId != null,
             })
             .ToListAsync(ct);
 
@@ -238,63 +287,246 @@ public class MessagesController : ControllerBase
         return Ok(new ResponseDto { Result = new { Count = count } });
     }
 
-    /// <summary>Lê a mensagem (participantes). Para o destinatário, marca como lida.</summary>
+    /// <summary>
+    /// Detalhes das mensagens visíveis para o colaborador (remetente que não excluiu, ou destinatário
+    /// que não excluiu), em ordem cronológica.
+    /// </summary>
+    private async Task<List<MessageDetailDto>> LoadVisibleAsync(IQueryable<Message> query, Guid me, CancellationToken ct)
+    {
+        return await query
+            .Where(m => (m.SenderMemberId == me && m.SenderDeletedAt == null) || m.Recipients.Any(r => r.MemberId == me && r.DeletedAt == null))
+            .OrderBy(m => m.CreatedAt).ThenBy(m => m.MessageId)
+            .Select(m => new MessageDetailDto
+            {
+                MessageId = m.MessageId,
+                SenderMemberId = m.SenderMemberId,
+                MessageBody = m.MessageBody,
+                CreatedAt = m.CreatedAt,
+                IsSender = m.SenderMemberId == me && m.SenderDeletedAt == null,
+                IsRecipient = m.Recipients.Any(r => r.MemberId == me && r.DeletedAt == null),
+                MyAcknowledgedAt = m.Recipients.Where(r => r.MemberId == me).Select(r => r.AcknowledgedAt).FirstOrDefault(),
+                ThreadId = m.ThreadId ?? m.MessageId,
+                ParentMessageId = m.ParentMessageId,
+                Recipients = m.Recipients
+                    .OrderBy(r => r.AddedAt)
+                    .Select(r => new MessageRecipientDto { MemberId = r.MemberId, AddedAt = r.AddedAt, ReadAt = r.ReadAt, AcknowledgedAt = r.AcknowledgedAt })
+                    .ToList(),
+                Media = m.Media
+                    .Select(x => new MessageMediaDto { MessageMediaId = x.MessageMediaId, FileName = x.FileName, ContentType = x.ContentType, Size = x.Size })
+                    .ToList(),
+            })
+            .AsSplitQuery()
+            .ToListAsync(ct);
+    }
+
+    private Task MarkReadAsync(IEnumerable<int> messageIds, Guid me, CancellationToken ct)
+    {
+        var ids = messageIds.ToList();
+        var now = DateTime.UtcNow;
+        return _db.messageRecipients
+            .Where(r => ids.Contains(r.MessageId) && r.MemberId == me && r.ReadAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ReadAt, now), ct);
+    }
+
+    /// <summary>Lê uma mensagem (participantes). Para o destinatário, marca como lida.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult> Get(int id, CancellationToken ct)
     {
         var memberId = await CurrentMemberIdAsync(ct);
         if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
 
-        var message = await _db.messages.AsNoTracking()
+        var message = (await LoadVisibleAsync(_db.messages.AsNoTracking().Where(m => m.MessageId == id), memberId.Value, ct)).FirstOrDefault();
+        if (message is null) return NotFound(Fail("Mensagem não encontrada."));
+
+        if (message.IsRecipient) await MarkReadAsync(new[] { id }, memberId.Value, ct);
+        return Ok(new ResponseDto { Result = message });
+    }
+
+    /// <summary>
+    /// Conversa completa a partir de qualquer mensagem dela: a original e as respostas que o
+    /// colaborador pode ver, em ordem. Marca como lidas as que ele recebeu.
+    /// </summary>
+    [HttpGet("{id:int}/thread")]
+    public async Task<ActionResult> Thread(int id, CancellationToken ct)
+    {
+        var memberId = await CurrentMemberIdAsync(ct);
+        if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+        var me = memberId.Value;
+
+        var threadId = await _db.messages.AsNoTracking()
+            .Where(m => m.MessageId == id)
+            .Select(m => (int?)(m.ThreadId ?? m.MessageId))
+            .FirstOrDefaultAsync(ct);
+        if (threadId is null) return NotFound(Fail("Mensagem não encontrada."));
+
+        var messages = await LoadVisibleAsync(
+            _db.messages.AsNoTracking().Where(m => m.MessageId == threadId || m.ThreadId == threadId), me, ct);
+        if (!messages.Any(m => m.MessageId == id)) return NotFound(Fail("Mensagem não encontrada."));
+
+        await MarkReadAsync(messages.Where(m => m.IsRecipient).Select(m => m.MessageId), me, ct);
+        return Ok(new ResponseDto { Result = new MessageThreadDto { ThreadId = threadId.Value, Messages = messages } });
+    }
+
+    /// <summary>
+    /// Responde uma mensagem: a resposta fica anexada à conversa da mensagem original e vai para
+    /// todos os participantes da mensagem respondida (remetente e destinatários), menos quem responde.
+    /// </summary>
+    [HttpPost("{id:int}/reply")]
+    [RequerServico(ServicosRestringiveis.Mensagens)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxFiles * MaxFileBytes + 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxFiles * MaxFileBytes + 1024 * 1024)]
+    public async Task<ActionResult> Reply(int id, [FromForm] ReplyMessageForm form, CancellationToken ct)
+    {
+        var userId = CurrentUserId;
+        if (userId is null) return Unauthorized();
+        var senderId = await CurrentMemberIdAsync(ct);
+        if (senderId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+        var me = senderId.Value;
+
+        var original = await _db.messages.AsNoTracking()
             .Where(m => m.MessageId == id)
             .Select(m => new
             {
                 m.MessageId,
+                m.ThreadId,
                 m.SenderMemberId,
-                m.MessageBody,
-                m.CreatedAt,
                 m.SenderDeletedAt,
-                RecipientDeletedAt = m.Recipients.Where(r => r.MemberId == memberId.Value).Select(r => r.DeletedAt).FirstOrDefault(),
-                Recipients = m.Recipients
-                    .OrderBy(r => r.AddedAt)
-                    .Select(r => new MessageRecipientDto { MemberId = r.MemberId, AddedAt = r.AddedAt, ReadAt = r.ReadAt })
-                    .ToList(),
-                Media = m.Media
-                    .Select(x => new MessageMediaDto { MessageMediaId = x.MessageMediaId, FileName = x.FileName, ContentType = x.ContentType, Size = x.Size })
-                    .ToList(),
+                Recipients = m.Recipients.Select(r => new { r.MemberId, r.DeletedAt }).ToList(),
             })
             .FirstOrDefaultAsync(ct);
+        if (original is null) return NotFound(Fail("Mensagem não encontrada."));
 
-        if (message is null) return NotFound(Fail("Mensagem não encontrada."));
+        var canSee = (original.SenderMemberId == me && original.SenderDeletedAt == null)
+            || original.Recipients.Any(r => r.MemberId == me && r.DeletedAt == null);
+        if (!canSee) return NotFound(Fail("Mensagem não encontrada."));
 
-        // Excluída pelo colaborador: deixa de existir para ele
-        var isSender = message.SenderMemberId == memberId.Value && message.SenderDeletedAt == null;
-        var isRecipient = message.Recipients.Any(r => r.MemberId == memberId.Value) && message.RecipientDeletedAt == null;
-        if (!isSender && !isRecipient && (message.SenderMemberId == memberId.Value || message.Recipients.Any(r => r.MemberId == memberId.Value)))
-            return NotFound(Fail("Mensagem não encontrada."));
-        if (!isSender && !isRecipient) return Forbid();
+        var body = form.MessageBody?.Trim() ?? string.Empty;
+        var files = form.Files ?? new List<IFormFile>();
+        if (body.Length == 0 && files.Count == 0) return BadRequest(Fail("Escreva a resposta ou anexe um arquivo."));
+        if (body.Length > MaxBodyLength) return BadRequest(Fail($"A resposta deve ter no máximo {MaxBodyLength} caracteres."));
+        var fileError = ValidateFiles(files);
+        if (fileError is not null) return BadRequest(Fail(fileError));
 
-        if (isRecipient)
+        var recipientIds = original.Recipients.Select(r => r.MemberId)
+            .Append(original.SenderMemberId)
+            .Where(m => m != me)
+            .Distinct()
+            .ToList();
+        if (recipientIds.Count == 0) return BadRequest(Fail("Não há outros participantes nesta conversa."));
+
+        var now = DateTime.UtcNow;
+        var reply = new Message
+        {
+            SenderMemberId = me,
+            SenderUserId = userId,
+            MessageBody = body,
+            CreatedAt = now,
+            ThreadId = original.ThreadId ?? original.MessageId,
+            ParentMessageId = original.MessageId,
+        };
+        foreach (var rid in recipientIds) reply.Recipients.Add(new MessageRecipient { MemberId = rid, AddedAt = now });
+        foreach (var file in files) reply.Media.Add(await ToMediaAsync(file, ct));
+
+        _db.messages.Add(reply);
+        await _db.SaveChangesAsync(ct);
+
+        var senderName = await SenderNameAsync(me, ct);
+        await _notifications.NotifyAsync(recipientIds, $"{senderName ?? "Um colaborador"} respondeu uma mensagem.", $"/mensagens/{reply.MessageId}", BearerToken, ct: ct);
+
+        return Ok(new ResponseDto { Result = new { reply.MessageId, reply.ThreadId } });
+    }
+
+    /// <summary>
+    /// "Registrar ciência": o destinatário confirma que leu e está ciente da mensagem.
+    /// O remetente vê a data na lista de destinatários e recebe uma notificação.
+    /// </summary>
+    [HttpPost("{id:int}/ciencia")]
+    public async Task<ActionResult> Acknowledge(int id, CancellationToken ct)
+    {
+        var memberId = await CurrentMemberIdAsync(ct);
+        if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+        var me = memberId.Value;
+
+        var recipient = await _db.messageRecipients.Include(r => r.Message)
+            .FirstOrDefaultAsync(r => r.MessageId == id && r.MemberId == me && r.DeletedAt == null, ct);
+        if (recipient is null) return NotFound(Fail("Mensagem não encontrada na sua caixa de entrada."));
+
+        if (recipient.AcknowledgedAt is null)
         {
             var now = DateTime.UtcNow;
-            await _db.messageRecipients
-                .Where(r => r.MessageId == id && r.MemberId == memberId.Value && r.ReadAt == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(r => r.ReadAt, now), ct);
+            recipient.AcknowledgedAt = now;
+            recipient.ReadAt ??= now;
+            await _db.SaveChangesAsync(ct);
+
+            var name = await SenderNameAsync(me, ct);
+            await _notifications.NotifyAsync(new[] { recipient.Message.SenderMemberId },
+                $"{name ?? "Um colaborador"} registrou ciência da sua mensagem.", $"/mensagens/{id}", BearerToken, ct: ct);
         }
 
-        return Ok(new ResponseDto
+        return Ok(new ResponseDto { Result = new { MessageId = id, recipient.AcknowledgedAt } });
+    }
+
+    private async Task<string?> SenderNameAsync(Guid memberId, CancellationToken ct)
+    {
+        try
         {
-            Result = new MessageDetailDto
+            var members = await _identidade.LookupAsync(new[] { memberId }, BearerToken, ct);
+            return members.TryGetValue(memberId, out var m) ? m.Nome : null;
+        }
+        catch (Exception ex)
+        {
+            // O nome só enfeita o texto da notificação
+            _logger.LogWarning(ex, "Não foi possível obter o nome do membro {MemberId}", memberId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Exclui a conversa inteira da caixa de quem pediu (mensagens recebidas e enviadas por ele).
+    /// Os demais participantes continuam vendo.
+    /// </summary>
+    [HttpDelete("{id:int}/thread")]
+    public async Task<ActionResult> DeleteThread(int id, CancellationToken ct)
+    {
+        var memberId = await CurrentMemberIdAsync(ct);
+        if (memberId is null) return BadRequest(Fail(PerfilNaoEncontrado));
+        var me = memberId.Value;
+
+        var threadId = await _db.messages.AsNoTracking()
+            .Where(m => m.MessageId == id)
+            .Select(m => (int?)(m.ThreadId ?? m.MessageId))
+            .FirstOrDefaultAsync(ct);
+        if (threadId is null) return NotFound(Fail("Mensagem não encontrada."));
+
+        var messages = await _db.messages.Include(m => m.Recipients)
+            .Where(m => (m.MessageId == threadId || m.ThreadId == threadId) && (m.SenderMemberId == me || m.Recipients.Any(r => r.MemberId == me)))
+            .ToListAsync(ct);
+
+        var now = DateTime.UtcNow;
+        var changed = false;
+        foreach (var message in messages)
+        {
+            if (message.SenderMemberId == me && message.SenderDeletedAt is null)
             {
-                MessageId = message.MessageId,
-                SenderMemberId = message.SenderMemberId,
-                MessageBody = message.MessageBody,
-                CreatedAt = message.CreatedAt,
-                IsSender = isSender,
-                Recipients = message.Recipients,
-                Media = message.Media,
+                message.SenderDeletedAt = now;
+                changed = true;
             }
-        });
+            foreach (var r in message.Recipients.Where(r => r.MemberId == me && r.DeletedAt is null))
+            {
+                r.DeletedAt = now;
+                r.ReadAt ??= now;
+                changed = true;
+            }
+        }
+        if (!changed) return NotFound(Fail("Mensagem não encontrada."));
+
+        // Ninguém mais vê a conversa: remove de vez (anexos em cascata)
+        var orphans = messages.Where(m => m.SenderDeletedAt is not null && m.Recipients.All(r => r.DeletedAt is not null)).ToList();
+        if (orphans.Count == messages.Count) _db.messages.RemoveRange(orphans);
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ResponseDto());
     }
 
     /// <summary>Download de anexo (participantes). Sempre como attachment.</summary>

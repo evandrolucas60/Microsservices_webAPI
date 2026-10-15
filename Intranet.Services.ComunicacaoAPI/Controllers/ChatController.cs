@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunicacaoAPI.Data;
 using Intranet.Services.ComunicacaoAPI.Models;
 using Intranet.Services.ComunicacaoAPI.Models.DTOs;
@@ -135,6 +137,7 @@ public class ChatController : ControllerBase
 
     /// <summary>Abre (ou cria) a conversa com outro colaborador.</summary>
     [HttpPost("conversations")]
+    [RequerServico(ServicosRestringiveis.Chat)]
     public async Task<ActionResult> StartConversation([FromBody] StartConversationRequest request, CancellationToken ct)
     {
         var me = await CurrentMemberIdAsync(ct);
@@ -211,6 +214,7 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost("conversations/{id:int}/messages")]
+    [RequerServico(ServicosRestringiveis.Chat)]
     public async Task<ActionResult> SendMessage(int id, [FromBody] SendChatMessageRequest request, CancellationToken ct)
     {
         var me = await CurrentMemberIdAsync(ct);
@@ -228,6 +232,7 @@ public class ChatController : ControllerBase
 
     /// <summary>Envia uma imagem (JPG, PNG, GIF ou WebP, até 5 MB) com legenda opcional.</summary>
     [HttpPost("conversations/{id:int}/images")]
+    [RequerServico(ServicosRestringiveis.Chat)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ImageFiles.MaxBytes + 64 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageFiles.MaxBytes + 64 * 1024)]
@@ -243,6 +248,7 @@ public class ChatController : ControllerBase
     /// (PDF, Office, texto/CSV), até 10 MB, com legenda opcional. O tipo é validado pelo conteúdo.
     /// </summary>
     [HttpPost("conversations/{id:int}/files")]
+    [RequerServico(ServicosRestringiveis.Chat)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ChatFiles.MaxBytes + 64 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = ChatFiles.MaxBytes + 64 * 1024)]
@@ -280,6 +286,7 @@ public class ChatController : ControllerBase
     /// remetente em cada conversa (429 com o tempo restante em Result.retryAfterSeconds).
     /// </summary>
     [HttpPost("conversations/{id:int}/nudge")]
+    [RequerServico(ServicosRestringiveis.Chat)]
     public async Task<ActionResult> Nudge(int id, CancellationToken ct)
     {
         var me = await CurrentMemberIdAsync(ct);

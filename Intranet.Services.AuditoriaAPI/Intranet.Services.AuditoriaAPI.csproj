@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Auditoria do painel de gestão (superAdmin): logs de erros (5xx) de todos os serviços e
+    registros de acesso (login). Recebe os eventos pelo RabbitMQ e grava no PostgreSQL.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks\BuildingBlocks.Shared\BuildingBlocks.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -5,6 +5,8 @@ using Intranet.Services.ConteudoAPI.Pagination;
 using Intranet.Services.ConteudoAPI.Pagination.Parameters;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
 using Intranet.Services.ConteudoAPI.Services;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +63,7 @@ public class PostController : ContentControllerBase
     }
 
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Publicacoes)]
     public async Task<ActionResult> Post([FromBody] PostDto postDto)
     {
         var memberId = await CurrentMemberIdAsync();
@@ -79,6 +82,7 @@ public class PostController : ContentControllerBase
     }
 
     [HttpPatch("UpdatePartial/{postId:int}")]
+    [RequerServico(ServicosRestringiveis.Publicacoes)]
     public async Task<ActionResult> UpdatePartial(int postId, [FromBody] PostDto postDto)
     {
         var memberId = await CurrentMemberIdAsync();
@@ -102,6 +106,7 @@ public class PostController : ContentControllerBase
     /// Compartilhar um compartilhamento compartilha o post original; cada um compartilha um post uma vez.
     /// </summary>
     [HttpPost("{postId:int}/share")]
+    [RequerServico(ServicosRestringiveis.Publicacoes)]
     public async Task<ActionResult> Share(int postId, [FromBody] SharePostDto? dto)
     {
         var memberId = await CurrentMemberIdAsync();
@@ -139,8 +144,26 @@ public class PostController : ContentControllerBase
         return Ok(new ResponseDto { Result = await _uof.PostRepository.GetDetailAsync(share.PostId, memberId) });
     }
 
+    /// <summary>Quem curtiu o post (mais recentes primeiro), com nome e foto. Público como o post.</summary>
+    [AllowAnonymous]
+    [HttpGet("{postId:int}/likes")]
+    public async Task<ActionResult> Likes(int postId)
+    {
+        if (!await _db.posts.AnyAsync(p => p.PostId == postId)) return NotFound(Fail("Post não encontrado."));
+
+        var likes = await _db.postLikes.AsNoTracking()
+            .Where(l => l.PostId == postId)
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(MaxLikers)
+            .Select(l => new { l.MemberId, l.CreatedAt })
+            .ToListAsync();
+
+        return Ok(new ResponseDto { Result = await ToLikersAsync(likes.Select(l => (l.MemberId, l.CreatedAt)).ToList()) });
+    }
+
     /// <summary>Curte/descurte o post para o colaborador do token e devolve o estado atualizado.</summary>
     [HttpPatch("ToggleLikeAsync/{postId:int}")]
+    [RequerServico(ServicosRestringiveis.Curtidas)]
     public async Task<ActionResult> ToggleLikeAsync(int postId)
     {
         var memberId = await CurrentMemberIdAsync();

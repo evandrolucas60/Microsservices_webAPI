@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 
@@ -13,7 +13,11 @@ public class MappingConfig : Profile
         // mapeada por referência, permitiria reatribuir o endereço de outro membro.
         // Endereço é gravado apenas por api/Address (com checagem de dono).
         CreateMap<Member, MemberDto>().ReverseMap()
-            .ForMember(d => d.Address, o => o.Ignore());
+            .ForMember(d => d.Address, o => o.Ignore())
+            // Gravado apenas pelo evento de login
+            .ForMember(d => d.LastLoginAt, o => o.Ignore())
+            // Gravado apenas por api/Hierarquia (Admin), com validação de ciclos
+            .ForMember(d => d.GestorMemberId, o => o.Ignore());
 
         // DTO -> entidade não cria Work pela navegação: o trabalho é gravado por api/Work.
         // Redes sociais também não: são validadas e gravadas só por api/UserProfile/redes-sociais

@@ -6,4 +6,7 @@ public class MemberDto : Person
     public string? UserId { get; set; }
     public DateTime dateOfMembership { get; set; }
     public DateOnly? BirthDate { get; set; }
+
+    // Somente leitura: o gestor é alterado em api/Hierarquia (ignorado no mapeamento DTO -> entidade)
+    public Guid? GestorMemberId { get; set; }
 }

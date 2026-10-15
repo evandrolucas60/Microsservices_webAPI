@@ -222,6 +222,73 @@ namespace Intranet.Services.ConteudoAPI.Migrations
                     b.ToTable("commentLikes");
                 });
 
+            modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Denuncia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("AlvoAutorMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AlvoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AlvoResumo")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CriadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DenuncianteMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Detalhes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Resolucao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ResolvidaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResolvidaPorUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "CriadaEm");
+
+                    b.HasIndex("Tipo", "AlvoId");
+
+                    b.HasIndex("DenuncianteMemberId", "Tipo", "AlvoId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'pendente'");
+
+                    b.ToTable("denuncias");
+                });
+
             modelBuilder.Entity("Intranet.Services.ConteudoAPI.Models.Post", b =>
                 {
                     b.Property<int>("PostId")

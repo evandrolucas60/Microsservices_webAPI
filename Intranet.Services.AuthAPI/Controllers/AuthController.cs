@@ -1,5 +1,8 @@
-﻿using Intranet.Services.AuthAPI.Models;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Contracts.Autenticacao;
+using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Models.DTOs;
+using Intranet.Services.AuthAPI.Service;
 using Intranet.Services.AuthAPI.Service.IService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -19,9 +22,11 @@ public class AuthController : ControllerBase
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
+    private readonly MassTransit.IPublishEndpoint _publish;
 
-    public AuthController(ITokenService tokenService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(ITokenService tokenService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, ILogger<AuthController> logger, MassTransit.IPublishEndpoint publish)
     {
+        _publish = publish;
         _tokenService = tokenService;
         _userManager = userManager;
         _roleManager = roleManager;
@@ -111,47 +116,124 @@ public class AuthController : ControllerBase
     [Route("login")]
     public async Task<IActionResult> Login([FromBody] LoginModel model)
     {
-        var user = await _userManager.FindByNameAsync(model.Username!);
+        var user = string.IsNullOrWhiteSpace(model.Username) ? null : await _userManager.FindByNameAsync(model.Username);
 
-        if (user is not null && await _userManager.CheckPasswordAsync(user, model.Password!))
+        if (user is null)
         {
-            var userRoles = await _userManager.GetRolesAsync(user);
-
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName!),
-                new Claim(ClaimTypes.Email, user.Email!),
-                new Claim("id", user.Id!),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            };
-
-            foreach (var userRole in userRoles)
-            {
-                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-            }
-
-            var token = _tokenService.GenerateAccessToken(authClaims, _configuration);
-
-            var refreshToken = _tokenService.GenerateRefreshToken();
-
-            _ = int.TryParse(_configuration["JWT:RefreshTokenValidityInMinutes"], out int refreshTokenValidityInMinutes);
-
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(refreshTokenValidityInMinutes);
-
-            user.RefreshToken = refreshToken;
-
-            await _userManager.UpdateAsync(user);
-
-            return Ok(
-                new
-                {
-                    Token = new JwtSecurityTokenHandler().WriteToken(token),
-                    RefreshToken = refreshToken,
-                    Expiration = token.ValidTo,
-                    Id = user.Id,
-                });
+            await PublicarAcessoAsync(null, model.Username, false, MotivoUsuarioInexistente);
+            return Unauthorized(new { isSuccess = false, message = MensagemCredenciaisInvalidas });
         }
-        return Unauthorized();
+
+        // CheckPasswordAsync não incrementa falhas: senha errada não bloqueia a conta.
+        // O lockout do Identity é usado só para o bloqueio manual do superAdmin.
+        if (string.IsNullOrEmpty(model.Password) || !await _userManager.CheckPasswordAsync(user, model.Password))
+        {
+            await PublicarAcessoAsync(user.Id, user.UserName, false, MotivoCredenciaisInvalidas);
+            return Unauthorized(new { isSuccess = false, message = MensagemCredenciaisInvalidas });
+        }
+
+        // Senha correta, mas conta bloqueada pelo superAdmin
+        if (AdminUsuariosService.EstaBloqueado(user))
+        {
+            await PublicarAcessoAsync(user.Id, user.UserName, false, MotivoContaBloqueada);
+            return StatusCode(StatusCodes.Status403Forbidden, ContaBloqueada(user));
+        }
+
+        var userRoles = await _userManager.GetRolesAsync(user);
+
+        var authClaims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName!),
+            new Claim(ClaimTypes.Email, user.Email!),
+            new Claim("id", user.Id!),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        };
+
+        foreach (var userRole in userRoles)
+        {
+            authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+        }
+
+        var token = _tokenService.GenerateAccessToken(authClaims, _configuration);
+
+        var refreshToken = _tokenService.GenerateRefreshToken();
+
+        _ = int.TryParse(_configuration["JWT:RefreshTokenValidityInMinutes"], out int refreshTokenValidityInMinutes);
+
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(refreshTokenValidityInMinutes);
+
+        user.RefreshToken = refreshToken;
+
+        await _userManager.UpdateAsync(user);
+
+        // Último acesso (painel "Most Recent Signin"): evento assíncrono para o IdentidadeAPI.
+        // Falha ao publicar não impede o login.
+        try
+        {
+            await _publish.Publish(new UsuarioAutenticado { UserId = user.Id!, AutenticadoEm = DateTime.UtcNow }, HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Não foi possível publicar o login do usuário {UserId}", user.Id);
+        }
+
+        await PublicarAcessoAsync(user.Id, user.UserName, true, null);
+
+        return Ok(
+            new
+            {
+                Token = new JwtSecurityTokenHandler().WriteToken(token),
+                RefreshToken = refreshToken,
+                Expiration = token.ValidTo,
+                Id = user.Id,
+            });
+    }
+
+    private const string MensagemCredenciaisInvalidas = "Usuário ou senha inválidos.";
+    private const string MensagemContaBloqueada = "Sua conta está bloqueada. Procure a administração do portal.";
+    private const string MotivoCredenciaisInvalidas = "credenciais inválidas";
+    private const string MotivoContaBloqueada = "conta bloqueada";
+    private const string MotivoUsuarioInexistente = "usuário inexistente";
+
+    /// <summary>Corpo da recusa por bloqueio (login e renovação do token).</summary>
+    private static object ContaBloqueada(ApplicationUser user)
+    {
+        var ate = AdminUsuariosService.BloqueadoAte(user);
+        return new
+        {
+            isSuccess = false,
+            message = ate is null
+                ? MensagemContaBloqueada
+                : $"Sua conta está bloqueada até {ate.Value:dd/MM/yyyy HH:mm} (UTC). Procure a administração do portal.",
+            bloqueado = true,
+            bloqueadoAte = ate,
+        };
+    }
+
+    /// <summary>Registro de acesso para a auditoria (AuditoriaAPI). Falha ao publicar não afeta o login.</summary>
+    private async Task PublicarAcessoAsync(string? userId, string? userName, bool sucesso, string? motivo)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress;
+            if (ip is not null && ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            await _publish.Publish(new AcessoRegistrado
+            {
+                UserId = userId,
+                UserName = userName is { Length: > 256 } ? userName[..256] : userName,
+                Sucesso = sucesso,
+                Motivo = motivo,
+                Ip = ip?.ToString(),
+                Em = DateTime.UtcNow,
+            }, timeout.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não foi possível publicar o registro de acesso de {UserName}", userName);
+        }
     }
 
     [HttpPost]
@@ -209,6 +291,12 @@ public class AuthController : ControllerBase
             )
         {
             return BadRequest("Invalid access token/refresh token - user null");
+        }
+
+        // Conta bloqueada pelo superAdmin: não renova (o bloqueio também revoga o refresh token)
+        if (AdminUsuariosService.EstaBloqueado(user))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ContaBloqueada(user));
         }
 
         // Claims montados a partir do usuário atual (papéis atualizados), não copiados do token antigo

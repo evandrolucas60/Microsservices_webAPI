@@ -4,6 +4,8 @@ using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Pagination.Parameters;
 using Intranet.Services.ConteudoAPI.Repository.IRepository;
 using Intranet.Services.ConteudoAPI.Services;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +55,7 @@ public class CommentController : ContentControllerBase
     }
 
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Comentarios)]
     public async Task<ActionResult> Post([FromBody] CommentDto commentDto)
     {
         var memberId = await CurrentMemberIdAsync();
@@ -86,6 +89,7 @@ public class CommentController : ContentControllerBase
     }
 
     [HttpPatch("UpdatePartial/{commentId:int}")]
+    [RequerServico(ServicosRestringiveis.Comentarios)]
     public async Task<ActionResult> UpdatePartial(int commentId, [FromBody] CommentDto commentDto)
     {
         var memberId = await CurrentMemberIdAsync();
@@ -104,8 +108,26 @@ public class CommentController : ContentControllerBase
         return Ok(new ResponseDto());
     }
 
+    /// <summary>Quem curtiu o comentário (mais recentes primeiro), com nome e foto. Público como o comentário.</summary>
+    [AllowAnonymous]
+    [HttpGet("{commentId:int}/likes")]
+    public async Task<ActionResult> Likes(int commentId)
+    {
+        if (!await _db.comments.AnyAsync(c => c.CommentId == commentId)) return NotFound(Fail("Comentário não encontrado."));
+
+        var likes = await _db.commentLikes.AsNoTracking()
+            .Where(l => l.CommentId == commentId)
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(MaxLikers)
+            .Select(l => new { l.MemberId, l.CreatedAt })
+            .ToListAsync();
+
+        return Ok(new ResponseDto { Result = await ToLikersAsync(likes.Select(l => (l.MemberId, l.CreatedAt)).ToList()) });
+    }
+
     /// <summary>Curte/descurte o comentário para o colaborador do token e devolve o estado atualizado.</summary>
     [HttpPatch("ToggleLikeAsync/{commentId:int}")]
+    [RequerServico(ServicosRestringiveis.Curtidas)]
     public async Task<ActionResult> ToggleLikeAsync(int commentId)
     {
         var memberId = await CurrentMemberIdAsync();

@@ -30,6 +30,21 @@ public class AppDbContext : DbContext
             .HasIndex(m => m.UserId)
             .IsUnique();
 
+        // Painel "Most Recent Signin": últimos logins
+        modelBuilder.Entity<Member>()
+            .HasIndex(m => m.LastLoginAt);
+
+        // Gestor direto (auto-relacionamento). Se o gestor for removido, os liderados ficam sem gestor.
+        modelBuilder.Entity<Member>(b =>
+        {
+            b.HasOne<Member>()
+                .WithMany()
+                .HasForeignKey(m => m.GestorMemberId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasIndex(m => m.GestorMemberId);
+        });
+
         modelBuilder.Entity<UserProfile>()
             .HasIndex(p => p.MemberId)
             .IsUnique();

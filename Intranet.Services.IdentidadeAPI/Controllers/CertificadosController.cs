@@ -1,4 +1,6 @@
 using System.Text;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
@@ -130,6 +132,7 @@ public class CertificadosController : ControllerBase
     /// title, issuer, issueDate, file). Apenas PDF (verificado pelo conteúdo), até 10 MB.
     /// </summary>
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Arquivos)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxRequestBytes)]

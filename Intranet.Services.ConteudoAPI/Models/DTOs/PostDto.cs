@@ -46,3 +46,12 @@ public class LikeStateDto
     public int TotalLikes { get; set; }
     public bool LikedByMe { get; set; }
 }
+
+/// <summary>Quem curtiu (post ou comentário), com nome e foto vindos do IdentidadeAPI.</summary>
+public class LikerDto
+{
+    public Guid MemberId { get; set; }
+    public string? Nome { get; set; }
+    public string? Foto { get; set; }
+    public DateTime CurtidoEm { get; set; }
+}

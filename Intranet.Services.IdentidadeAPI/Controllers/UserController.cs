@@ -223,6 +223,8 @@ public class UserController : ControllerBase
                 user.Member.Phone = null;
                 user.Member.UserId = null;
                 user.Member.BirthDate = null;
+                // Hierarquia (gestor direto) só para usuários logados, como em api/Hierarquia
+                user.Member.GestorMemberId = null;
                 user.Profile.Gender = null;
                 if (user.Profile.Work is not null) user.Profile.Work.Registration = string.Empty;
             }

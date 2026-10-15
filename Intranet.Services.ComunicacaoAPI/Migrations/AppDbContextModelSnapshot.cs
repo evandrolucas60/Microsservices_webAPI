@@ -166,8 +166,14 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                     b.Property<DateTime?>("SenderDeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("ParentMessageId")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("SenderMemberId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("ThreadId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SenderUserId")
                         .IsRequired()
@@ -176,6 +182,8 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                     b.HasKey("MessageId");
 
                     b.HasIndex("SenderMemberId", "CreatedAt");
+
+                    b.HasIndex("ThreadId");
 
                     b.ToTable("messages");
                 });
@@ -222,6 +230,9 @@ namespace Intranet.Services.ComunicacaoAPI.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("MessageRecipientId"));
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");

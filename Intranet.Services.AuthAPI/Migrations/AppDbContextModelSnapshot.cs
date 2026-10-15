@@ -92,6 +92,40 @@ namespace Intranet.Services.AuthAPI.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Intranet.Services.AuthAPI.Models.UserRestriction", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AtualizadoPorUserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("BloqueadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("BloqueadoPorUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MotivoBloqueio")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("MotivoRestricao")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.PrimitiveCollection<string[]>("Servicos")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserRestrictions", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -222,6 +256,15 @@ namespace Intranet.Services.AuthAPI.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Intranet.Services.AuthAPI.Models.UserRestriction", b =>
+                {
+                    b.HasOne("Intranet.Services.AuthAPI.Models.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("Intranet.Services.AuthAPI.Models.UserRestriction", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

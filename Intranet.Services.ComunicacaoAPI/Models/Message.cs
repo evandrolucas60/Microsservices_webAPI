@@ -21,6 +21,12 @@ namespace Intranet.Services.ComunicacaoAPI.Models
         /// <summary>Excluída pelo remetente (some apenas da caixa de enviadas dele).</summary>
         public DateTime? SenderDeletedAt { get; set; }
 
+        /// <summary>Conversa: id da mensagem original (null = esta é a original). Chave da conversa = ThreadId ?? MessageId.</summary>
+        public int? ThreadId { get; set; }
+
+        /// <summary>Mensagem que esta resposta responde (null = mensagem original).</summary>
+        public int? ParentMessageId { get; set; }
+
         /// <summary>sendTo: Member[]</summary>
         public ICollection<MessageRecipient> Recipients { get; set; } = new List<MessageRecipient>();
 
@@ -41,6 +47,9 @@ namespace Intranet.Services.ComunicacaoAPI.Models
 
         /// <summary>Excluída pelo destinatário (some apenas da caixa de entrada dele).</summary>
         public DateTime? DeletedAt { get; set; }
+
+        /// <summary>"Registrar ciência": o destinatário confirmou que leu e está ciente.</summary>
+        public DateTime? AcknowledgedAt { get; set; }
     }
 
     /// <summary>Anexo (blob) armazenado no banco.</summary>

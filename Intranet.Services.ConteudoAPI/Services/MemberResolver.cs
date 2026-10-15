@@ -9,6 +9,9 @@ public interface IMemberResolver
 
     /// <summary>Nome do membro (para textos de notificação), ou null se indisponível.</summary>
     Task<string?> GetNameAsync(Guid memberId, string? bearerToken, CancellationToken ct = default);
+
+    /// <summary>Nome e foto de vários membros (vazio se o IdentidadeAPI não responder).</summary>
+    Task<IReadOnlyDictionary<Guid, BuildingBlocks.Contracts.Identidade.MembroResumo>> GetMembersAsync(IEnumerable<Guid> memberIds, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -28,6 +31,20 @@ public class MemberResolver : IMemberResolver
 
     public async Task<Guid?> GetMemberIdAsync(string userId, string? bearerToken, CancellationToken ct = default) =>
         (await _identidade.ObterMembroPorUsuarioAsync(userId, ct))?.MemberId;
+
+    public async Task<IReadOnlyDictionary<Guid, BuildingBlocks.Contracts.Identidade.MembroResumo>> GetMembersAsync(IEnumerable<Guid> memberIds, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _identidade.ObterMembrosAsync(memberIds, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Sem nomes a lista ainda funciona (o frontend mostra "Colaborador")
+            _logger.LogWarning(ex, "Não foi possível obter os nomes de quem curtiu");
+            return new Dictionary<Guid, BuildingBlocks.Contracts.Identidade.MembroResumo>();
+        }
+    }
 
     public async Task<string?> GetNameAsync(Guid memberId, string? bearerToken, CancellationToken ct = default)
     {

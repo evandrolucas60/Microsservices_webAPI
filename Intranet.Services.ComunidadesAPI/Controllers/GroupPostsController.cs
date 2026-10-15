@@ -1,3 +1,5 @@
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.ComunidadesAPI.Data;
 using Intranet.Services.ComunidadesAPI.Models;
 using Intranet.Services.ComunidadesAPI.Models.DTOs;
@@ -73,6 +75,7 @@ public class GroupPostsController : GroupControllerBase
 
     /// <summary>Nova publicação (multipart/form-data: "text" e "image" opcional). Avisa os demais membros.</summary>
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Grupos)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ImageValidator.MaxRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageValidator.MaxRequestBytes)]
@@ -169,6 +172,7 @@ public class GroupPostsController : GroupControllerBase
 
     /// <summary>Curte/descurte (uma curtida por membro). Retorna o estado atualizado do servidor.</summary>
     [HttpPost("{postId:int}/like")]
+    [RequerServico(ServicosRestringiveis.Grupos)]
     public async Task<ActionResult> ToggleLike(int groupId, int postId, CancellationToken ct)
     {
         var access = await GetAccessAsync(groupId, ct);
@@ -262,6 +266,7 @@ public class GroupPostsController : GroupControllerBase
 
     /// <summary>Novo comentário (texto simples). Avisa o autor da publicação.</summary>
     [HttpPost("{postId:int}/comments")]
+    [RequerServico(ServicosRestringiveis.Grupos)]
     public async Task<ActionResult> AddComment(int groupId, int postId, [FromBody] GroupCommentUpsertDto dto, CancellationToken ct)
     {
         var access = await GetAccessAsync(groupId, ct);

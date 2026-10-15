@@ -59,6 +59,8 @@ public class AppDbContext : DbContext
             b.Property(m => m.MessageBody).HasMaxLength(5000).IsRequired();
             b.Property(m => m.SenderUserId).IsRequired();
             b.HasIndex(m => new { m.SenderMemberId, m.CreatedAt });
+            // Respostas de uma conversa
+            b.HasIndex(m => m.ThreadId);
         });
 
         modelBuilder.Entity<MessageRecipient>(b =>

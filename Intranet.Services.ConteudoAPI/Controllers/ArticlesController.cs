@@ -4,6 +4,8 @@ using Intranet.Services.ConteudoAPI.Data;
 using Intranet.Services.ConteudoAPI.Models;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
 using Intranet.Services.ConteudoAPI.Services;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -135,6 +137,7 @@ public class ArticlesController : ContentControllerBase
 
     /// <summary>Publica um artigo e solicita o envio da newsletter.</summary>
     [HttpPost]
+    [RequerServico(ServicosRestringiveis.Artigos)]
     public async Task<ActionResult> Create([FromBody] ArticleUpsertDto dto)
     {
         var userId = CurrentUserId;
@@ -188,6 +191,7 @@ public class ArticlesController : ContentControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [RequerServico(ServicosRestringiveis.Artigos)]
     public async Task<ActionResult> Update(int id, [FromBody] ArticleUpsertDto dto)
     {
         var article = await _db.articles.FirstOrDefaultAsync(a => a.ArticleId == id);
@@ -220,6 +224,7 @@ public class ArticlesController : ContentControllerBase
 
     /// <summary>Curte/descurte o artigo para o usuário do token.</summary>
     [HttpPost("{id:int}/like")]
+    [RequerServico(ServicosRestringiveis.Curtidas)]
     public async Task<ActionResult> ToggleLike(int id)
     {
         var userId = CurrentUserId;
@@ -313,6 +318,7 @@ public class ArticlesController : ContentControllerBase
     }
 
     [HttpPost("{id:int}/comments")]
+    [RequerServico(ServicosRestringiveis.Comentarios)]
     public async Task<ActionResult> AddComment(int id, [FromBody] ArticleCommentCreateDto dto)
     {
         var userId = CurrentUserId;
@@ -377,6 +383,7 @@ public class ArticlesController : ContentControllerBase
     /// para usar como capa. A URL é absoluta porque também é usada na newsletter por e-mail.
     /// </summary>
     [HttpPost("images")]
+    [RequerServico(ServicosRestringiveis.Artigos)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ImageFiles.MaxBytes + 64 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageFiles.MaxBytes + 64 * 1024)]

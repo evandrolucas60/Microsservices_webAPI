@@ -1,6 +1,10 @@
+using BuildingBlocks.Contracts.Administracao;
 using BuildingBlocks.Shared.Exceptions;
+using BuildingBlocks.Shared.Security;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.Shared.Middleware;
@@ -48,6 +52,37 @@ public class ExceptionHandlingMiddleware
 
             context.Response.StatusCode = status;
             await context.Response.WriteAsJsonAsync(new { isSuccess = false, message, correlationId = context.TraceIdentifier });
+
+            if (status >= 500) await PublicarErroAsync(context, ex, status, message);
+        }
+    }
+
+    /// <summary>Envia o erro para o AuditoriaAPI (painel de gestão: "logs de erros de um usuário").</summary>
+    private async Task PublicarErroAsync(HttpContext context, Exception ex, int status, string message)
+    {
+        var publish = context.RequestServices.GetService<IPublishEndpoint>();
+        if (publish is null) return;
+
+        try
+        {
+            var detalhe = $"{ex.GetType().FullName}: {ex.Message}{Environment.NewLine}{ex.StackTrace}";
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await publish.Publish(new ErroRegistrado
+            {
+                Servico = context.RequestServices.GetService<IHostEnvironment>()?.ApplicationName ?? "desconhecido",
+                UserId = context.User.GetUserId(),
+                Metodo = context.Request.Method,
+                Caminho = context.Request.Path.Value ?? string.Empty,
+                Status = status,
+                Mensagem = message,
+                Excecao = detalhe.Length > 4000 ? detalhe[..4000] : detalhe,
+                CorrelationId = context.TraceIdentifier,
+                Em = DateTime.UtcNow,
+            }, timeout.Token);
+        }
+        catch (Exception publishError)
+        {
+            _logger.LogWarning(publishError, "Não foi possível publicar o erro para a auditoria");
         }
     }
 }

@@ -64,6 +64,47 @@ public class ColaboradoresController : ControllerBase
 
     private static bool MesValido(int mes) => mes is >= 1 and <= 12;
 
+    /// <summary>
+    /// Últimos colaboradores que entraram no portal (painel "Most Recent Signin" da home).
+    /// Público como a home; o horário do acesso só é informado a usuários logados.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("ultimos-acessos")]
+    public async Task<ActionResult> UltimosAcessos([FromQuery] int quantidade = 12)
+    {
+        quantidade = Math.Clamp(quantidade, 1, 30);
+        var autenticado = User.Identity?.IsAuthenticated == true;
+
+        var linhas = await Colaboradores()
+            .Where(l => l.Member.LastLoginAt != null)
+            .OrderByDescending(l => l.Member.LastLoginAt)
+            .Take(quantidade * 2) // folga para membros com mais de um registro de trabalho
+            .Select(l => new
+            {
+                l.Member.MemberId,
+                Nome = l.Member.Name,
+                Foto = l.Profile != null ? l.Profile.ProfilePicture : null,
+                Departamento = l.Work != null ? l.Work.Department : null,
+                l.Member.LastLoginAt,
+            })
+            .ToListAsync();
+
+        var result = linhas
+            .GroupBy(l => l.MemberId)
+            .Select(g => g.First())
+            .Take(quantidade)
+            .Select(l => new
+            {
+                l.MemberId,
+                l.Nome,
+                l.Foto,
+                l.Departamento,
+                UltimoAcesso = autenticado ? l.LastLoginAt : null,
+            });
+
+        return Ok(new ResponseDto { Result = result });
+    }
+
     /// <summary>Aniversariantes do mês (padrão: mês atual), ordenados pelo dia.</summary>
     [AllowAnonymous]
     [HttpGet("aniversariantes")]

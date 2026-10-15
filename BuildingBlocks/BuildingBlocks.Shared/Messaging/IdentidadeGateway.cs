@@ -22,6 +22,21 @@ public interface IIdentidadeGateway
 
     /// <summary>E-mails dos membros informados (vazio = todos os colaboradores com e-mail).</summary>
     Task<IReadOnlyList<DestinatarioEmail>> ObterDestinatariosEmailAsync(IEnumerable<Guid>? memberIds = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gestores do membro, do gestor direto ([0]) até o topo da hierarquia.
+    /// Lista vazia quando o membro não tem gestor ou não existe.
+    /// </summary>
+    Task<IReadOnlyList<MembroResumo>> ObterCadeiaGestoresAsync(Guid memberId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Se gestorMemberId é gestor de memberId: direto e/ou em algum nível acima
+    /// (ex.: quem pode aprovar a solicitação de um liderado).
+    /// </summary>
+    Task<VerificarGestorResposta> VerificarGestorAsync(Guid gestorMemberId, Guid memberId, CancellationToken ct = default);
+
+    /// <summary>Colaboradores das contas informadas (UserId → membro). Painel de gestão.</summary>
+    Task<IReadOnlyDictionary<string, MembroDeUsuario>> ObterMembrosPorUsuariosAsync(IEnumerable<string> userIds, CancellationToken ct = default);
 }
 
 public class IdentidadeGateway : IIdentidadeGateway
@@ -32,6 +47,9 @@ public class IdentidadeGateway : IIdentidadeGateway
     private readonly IRequestClient<ObterMembros> _membros;
     private readonly IRequestClient<ObterColaboradoresPorDepartamento> _colaboradores;
     private readonly IRequestClient<ObterDestinatariosEmail> _destinatarios;
+    private readonly IRequestClient<ObterCadeiaGestores> _cadeiaGestores;
+    private readonly IRequestClient<VerificarGestor> _verificarGestor;
+    private readonly IRequestClient<ObterMembrosPorUsuarios> _membrosPorUsuarios;
     private readonly IMemoryCache _cache;
     private readonly ILogger<IdentidadeGateway> _logger;
 
@@ -40,6 +58,9 @@ public class IdentidadeGateway : IIdentidadeGateway
         IRequestClient<ObterMembros> membros,
         IRequestClient<ObterColaboradoresPorDepartamento> colaboradores,
         IRequestClient<ObterDestinatariosEmail> destinatarios,
+        IRequestClient<ObterCadeiaGestores> cadeiaGestores,
+        IRequestClient<VerificarGestor> verificarGestor,
+        IRequestClient<ObterMembrosPorUsuarios> membrosPorUsuarios,
         IMemoryCache cache,
         ILogger<IdentidadeGateway> logger)
     {
@@ -47,6 +68,9 @@ public class IdentidadeGateway : IIdentidadeGateway
         _membros = membros;
         _colaboradores = colaboradores;
         _destinatarios = destinatarios;
+        _cadeiaGestores = cadeiaGestores;
+        _verificarGestor = verificarGestor;
+        _membrosPorUsuarios = membrosPorUsuarios;
         _cache = cache;
         _logger = logger;
     }
@@ -109,5 +133,34 @@ public class IdentidadeGateway : IIdentidadeGateway
         var resposta = await RequestAsync<ObterDestinatariosEmail, DestinatariosEmailResposta>(
             _destinatarios, new ObterDestinatariosEmail { MemberIds = ids }, ct);
         return resposta.Destinatarios;
+    }
+
+    // Sem cache: aprovações precisam refletir a troca de gestor imediatamente
+    public async Task<IReadOnlyList<MembroResumo>> ObterCadeiaGestoresAsync(Guid memberId, CancellationToken ct = default)
+    {
+        if (memberId == Guid.Empty) return Array.Empty<MembroResumo>();
+
+        var resposta = await RequestAsync<ObterCadeiaGestores, CadeiaGestoresResposta>(
+            _cadeiaGestores, new ObterCadeiaGestores { MemberId = memberId }, ct);
+        return resposta.Gestores;
+    }
+
+    public async Task<VerificarGestorResposta> VerificarGestorAsync(Guid gestorMemberId, Guid memberId, CancellationToken ct = default)
+    {
+        if (gestorMemberId == Guid.Empty || memberId == Guid.Empty || gestorMemberId == memberId)
+            return new VerificarGestorResposta();
+
+        return await RequestAsync<VerificarGestor, VerificarGestorResposta>(
+            _verificarGestor, new VerificarGestor { GestorMemberId = gestorMemberId, MemberId = memberId }, ct);
+    }
+
+    public async Task<IReadOnlyDictionary<string, MembroDeUsuario>> ObterMembrosPorUsuariosAsync(IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        var ids = userIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().Take(500).ToArray();
+        if (ids.Length == 0) return new Dictionary<string, MembroDeUsuario>();
+
+        var resposta = await RequestAsync<ObterMembrosPorUsuarios, MembrosPorUsuariosResposta>(
+            _membrosPorUsuarios, new ObterMembrosPorUsuarios { UserIds = ids }, ct);
+        return resposta.Itens.GroupBy(m => m.UserId).ToDictionary(g => g.Key, g => g.First());
     }
 }

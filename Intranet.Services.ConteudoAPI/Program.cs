@@ -1,6 +1,7 @@
 using BuildingBlocks.Shared.Logging;
 using BuildingBlocks.Shared.Messaging;
 using BuildingBlocks.Shared.Middleware;
+using BuildingBlocks.Shared.Security;
 using AutoMapper;
 using Intranet.Services.ConteudoAPI;
 using Intranet.Services.ConteudoAPI.Data;
@@ -96,6 +97,8 @@ public partial class Program
         builder.AddAppAuthentication();
 
         builder.Services.AddAuthorization();
+        // Painel de gestão: política SuperAdmin (endpoints api/admin/...)
+        builder.AddAdminPolicies();
 
         var app = builder.Build();
 
@@ -110,6 +113,8 @@ public partial class Program
         app.UseCors("DefaultPolicy");
         app.UseSharedExceptionHandling();
         app.UseAuthentication();
+        // Barra usuários bloqueados pelo superAdmin (restrições por serviço: [RequerServico])
+        app.UseSharedUserAccess();
         app.UseAuthorization();
 
         app.MapControllers();

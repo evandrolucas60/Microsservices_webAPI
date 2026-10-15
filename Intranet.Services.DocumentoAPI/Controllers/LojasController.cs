@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using BuildingBlocks.Contracts.Administracao;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.DocumentoAPI.Data;
 using Intranet.Services.DocumentoAPI.Models;
 using Intranet.Services.DocumentoAPI.Models.DTOs;
@@ -280,6 +282,7 @@ public class LojasController : ControllerBase
     /// (campo "descricao"). Todos são validados antes de gravar: se um for recusado, nada é gravado.
     /// </summary>
     [HttpPost("{id:int}/secoes/{secao}/arquivos")]
+    [RequerServico(ServicosRestringiveis.Arquivos)]
     [RequestSizeLimit(LojaArquivoValidator.MaxBytesPorEnvio)]
     [RequestFormLimits(MultipartBodyLengthLimit = LojaArquivoValidator.MaxBytesPorEnvio)]
     public async Task<ActionResult> Enviar(int id, string secao, [FromForm] LojaUploadForm form, CancellationToken ct)

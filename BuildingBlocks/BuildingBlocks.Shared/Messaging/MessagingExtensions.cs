@@ -29,6 +29,20 @@ public static class MessagingExtensions
             x.AddRequestClient<ObterMembros>(timeout);
             x.AddRequestClient<ObterColaboradoresPorDepartamento>(timeout);
             x.AddRequestClient<ObterDestinatariosEmail>(timeout);
+            // Hierarquia de gestores (aprovações)
+            x.AddRequestClient<ObterCadeiaGestores>(timeout);
+            x.AddRequestClient<VerificarGestor>(timeout);
+            x.AddRequestClient<ObterMembrosPorUsuarios>(timeout);
+
+            // Painel de gestão: bloqueio/restrições do usuário (AuthAPI responde; cada instância
+            // de cada serviço tem a sua fila temporária para atualizar o cache local na hora)
+            x.AddRequestClient<BuildingBlocks.Contracts.Administracao.ObterRestricoesUsuario>(timeout);
+            x.AddConsumer<BuildingBlocks.Shared.Security.RestricoesUsuarioAlteradasConsumer>()
+                .Endpoint(e =>
+                {
+                    e.InstanceId = $"{builder.Environment.ApplicationName}-{Guid.NewGuid():N}"[..Math.Min(60, builder.Environment.ApplicationName.Length + 33)];
+                    e.Temporary = true;
+                });
 
             configure?.Invoke(x);
 
@@ -60,6 +74,7 @@ public static class MessagingExtensions
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<IIdentidadeGateway, IdentidadeGateway>();
         builder.Services.AddScoped<INotificacaoPublisher, NotificacaoPublisher>();
+        builder.Services.AddScoped<BuildingBlocks.Shared.Security.IRestricoesUsuarioService, BuildingBlocks.Shared.Security.RestricoesUsuarioService>();
 
         return builder;
     }
