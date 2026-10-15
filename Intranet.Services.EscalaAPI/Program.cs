@@ -1,3 +1,7 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
+using Intranet.Services.EscalaAPI.Services;
 using Intranet.Services.EscalaAPI.Data;
 using Intranet.Services.EscalaAPI.Extensions;
 using Intranet.Services.EscalaAPI.Repository;
@@ -12,16 +16,25 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Logs estruturados
+        builder.AddSharedSerilog();
+
         // Add services to the container.
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
             options.UseNpgsql(connectionString);
+            // Migrações escritas à mão (sem Designer): o snapshot é mantido manualmente
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         builder.Services.AddScoped<IUnityOfWork, UnityOfWork>();
+
+        // Mensageria (MassTransit + RabbitMQ): colaboradores da T.I consultados no IdentidadeAPI
+        builder.AddMessaging();
+        builder.Services.AddScoped<IdentidadeClient>();
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -80,8 +93,10 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
         app.UseCors("DefaultPolicy");
+        app.UseSharedExceptionHandling();
         app.UseAuthentication();
         app.UseAuthorization();
 

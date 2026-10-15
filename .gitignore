@@ -416,3 +416,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Logs do Serilog (arquivos diários de cada serviço)
+**/logs/

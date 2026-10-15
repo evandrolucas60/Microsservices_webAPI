@@ -1,0 +1,19 @@
+# RabbitMQ para desenvolvimento local (mensageria entre os serviços via MassTransit).
+# Uso: docker compose -f docker-compose.rabbitmq.yml up -d
+# Painel: http://localhost:15672 (usuário/senha abaixo). Nos appsettings, use RabbitMq:Host = localhost.
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: intranet-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: intranet
+      RABBITMQ_DEFAULT_PASS: troque-esta-senha
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  rabbitmq-data:

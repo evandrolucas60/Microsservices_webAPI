@@ -152,7 +152,7 @@ public class ChatController : ControllerBase
                 var found = await _identidade.LookupAsync(new[] { request.MemberId }, BearerToken, ct);
                 if (!found.ContainsKey(request.MemberId)) return NotFound(Fail("Colaborador não encontrado."));
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (BuildingBlocks.Shared.Exceptions.ServicoIndisponivelException ex)
             {
                 _logger.LogWarning(ex, "IdentidadeAPI indisponível ao iniciar conversa");
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, Fail("Não foi possível validar o colaborador. Tente novamente."));

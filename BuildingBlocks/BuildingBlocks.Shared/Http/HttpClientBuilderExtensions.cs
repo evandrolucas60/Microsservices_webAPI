@@ -1,13 +1,15 @@
 using System.Net.Security;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-namespace Intranet.Services.ComunidadesAPI.Extensions;
+namespace BuildingBlocks.Shared.Http;
 
 public static class HttpClientBuilderExtensions
 {
     /// <summary>
-    /// Chamadas entre serviços em desenvolvimento: aceita o certificado HTTPS de desenvolvimento
-    /// do .NET em localhost mesmo quando ele não está instalado como confiável na máquina
-    /// (sem isso, a chamada falha com "UntrustedRoot"). Em produção a validação é a padrão.
+    /// Chamadas HTTP internas em desenvolvimento: aceita o certificado de desenvolvimento do .NET
+    /// em localhost mesmo quando ele não está instalado como confiável (erro "UntrustedRoot").
+    /// Em produção a validação é a padrão.
     /// </summary>
     public static IHttpClientBuilder AcceptLocalDevCertificate(this IHttpClientBuilder builder, IHostEnvironment environment)
     {

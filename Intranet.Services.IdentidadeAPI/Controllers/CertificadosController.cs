@@ -80,6 +80,7 @@ public class CertificadosController : ControllerBase
     }
 
     /// <summary>Certificados de um membro (metadados), do mais recente para o mais antigo.</summary>
+    [AllowAnonymous]
     [HttpGet("membro/{memberId:guid}")]
     public async Task<ActionResult> ListarPorMembro(Guid memberId)
     {

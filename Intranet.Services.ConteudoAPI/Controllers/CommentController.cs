@@ -32,6 +32,7 @@ public class CommentController : ContentControllerBase
         _db = db;
     }
 
+    [AllowAnonymous]
     [HttpGet("filter/date/pagination/{postId:int}")]
     public async Task<ActionResult> GetCommentsByFilterDate([FromQuery] CommentsParametersFilterData parameters, int postId)
     {

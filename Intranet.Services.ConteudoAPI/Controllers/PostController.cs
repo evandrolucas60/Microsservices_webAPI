@@ -35,6 +35,7 @@ public class PostController : ContentControllerBase
         _logger = logger;
     }
 
+    [AllowAnonymous]
     [HttpGet("{postId:int}")]
     public async Task<ActionResult> GetAsync(int postId)
     {
@@ -43,6 +44,7 @@ public class PostController : ContentControllerBase
         return Ok(new ResponseDto { Result = post });
     }
 
+    [AllowAnonymous]
     [HttpGet("GetAllPostByMemberId/{memberId:Guid}")]
     public async Task<ActionResult> GetAllPostByMemberIdAsync(Guid memberId)
     {

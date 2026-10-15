@@ -65,6 +65,7 @@ public class ColaboradoresController : ControllerBase
     private static bool MesValido(int mes) => mes is >= 1 and <= 12;
 
     /// <summary>Aniversariantes do mês (padrão: mês atual), ordenados pelo dia.</summary>
+    [AllowAnonymous]
     [HttpGet("aniversariantes")]
     public async Task<ActionResult> Aniversariantes([FromQuery] int? mes)
     {
@@ -94,6 +95,7 @@ public class ColaboradoresController : ControllerBase
     /// Colaboradores que completam anos de empresa no mês (padrão: mês atual).
     /// Considera apenas quem completa pelo menos 1 ano no ano corrente.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("tempo-de-empresa")]
     public async Task<ActionResult> TempoDeEmpresa([FromQuery] int? mes)
     {
@@ -134,9 +136,10 @@ public class ColaboradoresController : ControllerBase
         var userId = User.FindFirst("id")?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var member = await _db.Members.AsNoTracking()
-            .Where(m => m.UserId == userId)
-            .Select(m => new { m.MemberId, Nome = m.Name })
+        // Departamento: usado por outros serviços para permissões por setor (ex.: escalas da T.I)
+        var member = await Colaboradores()
+            .Where(l => l.Member.UserId == userId)
+            .Select(l => new { l.Member.MemberId, Nome = l.Member.Name, Departamento = l.Work != null ? l.Work.Department : null })
             .FirstOrDefaultAsync();
 
         if (member is null) return NotFound(new ResponseDto { IsSuccess = false, Message = "Membro não encontrado." });

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
@@ -69,6 +69,8 @@ public class WorkController : ControllerBase
         return Ok(_response);
     }
 
+    // Perfil público: cargo/setor e formação aparecem para visitantes
+    [AllowAnonymous]
     [HttpGet("GetworkbyMember/{memberId:Guid}")]
     public async Task<ActionResult<Work>> GetByProfileAsync(Guid memberId)
     {

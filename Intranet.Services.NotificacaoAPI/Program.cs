@@ -1,3 +1,8 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
+using Intranet.Services.NotificacaoAPI.Consumers;
+using MassTransit;
 using Intranet.Services.NotificacaoAPI.Data;
 using Intranet.Services.NotificacaoAPI.Extensions;
 using Intranet.Services.NotificacaoAPI.Models;
@@ -6,6 +11,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs estruturados
+builder.AddSharedSerilog();
 
 // Banco das notificações (fila persistente de envio)
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -27,16 +35,10 @@ builder.Services.AddHostedService<NewsletterWorker>();
 builder.Services.AddScoped<INotificationSender, PushNotificationSender>();
 builder.Services.AddScoped<INotificationSender, EmailNotificationSender>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
-builder.Services.AddSingleton<ServiceKeyValidator>();
 
-// IdentidadeAPI: destinatários e membro do token
-builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient(RecipientsClient.HttpClientName, client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:IdentidadeAPI"] ?? "https://localhost:7004/");
-    client.Timeout = TimeSpan.FromSeconds(15);
-}).AcceptLocalDevCertificate(builder.Environment);
-builder.Services.AddScoped<RecipientsClient>();
+// Mensageria (MassTransit + RabbitMQ): consome os pedidos de notificação e de newsletter dos
+// outros serviços; consulta colaboradores/e-mails no IdentidadeAPI por requisição/resposta
+builder.AddMessaging(x => x.AddConsumers(typeof(NotificacaoSolicitadaConsumer).Assembly));
 builder.Services.AddScoped<MemberResolver>();
 
 builder.Services.AddControllers();
@@ -69,8 +71,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSharedRequestLogging();
 app.UseHttpsRedirection();
 app.UseCors("DefaultPolicy");
+app.UseSharedExceptionHandling();
 
 app.UseAuthentication();
 app.UseAuthorization();

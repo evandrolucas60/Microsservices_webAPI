@@ -25,4 +25,8 @@
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
 	</ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks\BuildingBlocks.Shared\BuildingBlocks.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

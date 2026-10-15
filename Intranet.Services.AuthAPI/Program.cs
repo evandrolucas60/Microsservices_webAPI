@@ -1,3 +1,5 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Middleware;
 using Intranet.Services.AuthAPI.Data;
 using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Service;
@@ -15,6 +17,9 @@ public partial class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Logs estruturados
+        builder.AddSharedSerilog();
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -73,8 +78,10 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
         app.UseCors("DefaultPolicy");
+        app.UseSharedExceptionHandling();
         app.UseAuthentication();
         app.UseAuthorization();
 

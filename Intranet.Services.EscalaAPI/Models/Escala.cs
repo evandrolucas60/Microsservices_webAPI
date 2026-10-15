@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Intranet.Services.EscalaAPI.Models;
 public class Escala
@@ -20,4 +20,7 @@ public class Escala
     public string? Horario { get; set; }
     public string? Dia { get; set; }
     public string? ProfileImg { get; set; }
+
+    /// <summary>Colaborador da T.I escalado (IdentidadeAPI): Nome, Funcao, Email e ProfileImg vêm do cadastro dele.</summary>
+    public Guid? MemberId { get; set; }
 }

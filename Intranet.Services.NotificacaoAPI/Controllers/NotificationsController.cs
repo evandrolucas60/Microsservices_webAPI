@@ -10,127 +10,30 @@ using Microsoft.EntityFrameworkCore;
 namespace Intranet.Services.NotificacaoAPI.Controllers;
 
 /// <summary>
-/// Notificações: criação pelos serviços da intranet (chave de serviço) e
-/// leitura pelo próprio colaborador (sininho / notificações in-app).
+/// Notificações in-app do próprio colaborador (sininho). A criação não passa mais por HTTP:
+/// os outros serviços publicam NotificacaoSolicitada no RabbitMQ (ver Consumers).
 /// </summary>
 [Route("api/notifications")]
 [ApiController]
 [Authorize]
 public class NotificationsController : ControllerBase
 {
-    private const int MaxRecipients = 500;
     private const int MaxPageSize = 50;
 
     private readonly AppDbContext _db;
-    private readonly ServiceKeyValidator _serviceKey;
-    private readonly RecipientsClient _recipients;
     private readonly MemberResolver _members;
-    private readonly ILogger<NotificationsController> _logger;
 
-    public NotificationsController(
-        AppDbContext db,
-        ServiceKeyValidator serviceKey,
-        RecipientsClient recipients,
-        MemberResolver members,
-        ILogger<NotificationsController> logger)
+    public NotificationsController(AppDbContext db, MemberResolver members)
     {
         _db = db;
-        _serviceKey = serviceKey;
-        _recipients = recipients;
         _members = members;
-        _logger = logger;
-    }
-
-    private string? BearerToken
-    {
-        get
-        {
-            var header = Request.Headers.Authorization.ToString();
-            return header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header["Bearer ".Length..].Trim() : null;
-        }
     }
 
     private async Task<Guid?> CurrentMemberIdAsync(CancellationToken ct)
     {
         var userId = User.FindFirst("id")?.Value;
-        return string.IsNullOrEmpty(userId) ? null : await _members.GetMemberIdAsync(userId, BearerToken, ct);
+        return string.IsNullOrEmpty(userId) ? null : await _members.GetMemberIdAsync(userId, ct);
     }
-
-    /// <summary>
-    /// Uso interno: cria uma notificação in-app (PushNotification) para cada destinatário e,
-    /// com SendEmail, também uma EmailNotification (enviada em segundo plano).
-    /// </summary>
-    [HttpPost]
-    public async Task<ActionResult> Create([FromBody] CreateNotificationRequest request, CancellationToken ct)
-    {
-        if (!_serviceKey.IsValid(Request)) return Forbid();
-
-        var recipients = request.RecipientMemberIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? new();
-        if (recipients.Count == 0) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Informe ao menos um destinatário." });
-        if (recipients.Count > MaxRecipients) return BadRequest(new ResponseDto { IsSuccess = false, Message = $"Máximo de {MaxRecipients} destinatários." });
-        if (!NotificationCategories.IsValid(request.Category)) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Categoria inválida." });
-
-        var content = request.Content?.Trim() ?? string.Empty;
-        if (content.Length == 0) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Informe o conteúdo." });
-        if (content.Length > 500) content = content[..500];
-
-        // Link apenas relativo ao portal (evita redirecionar para sites externos)
-        var link = request.Link?.Trim();
-        if (!string.IsNullOrEmpty(link) && (!link.StartsWith('/') || link.StartsWith("//") || link.Length > 300))
-            return BadRequest(new ResponseDto { IsSuccess = false, Message = "Link inválido: use um caminho relativo (ex.: /mensagens/1)." });
-
-        var now = DateTime.UtcNow;
-
-        // In-app: já entregue ao ser gravada
-        foreach (var memberId in recipients)
-        {
-            _db.pushNotifications.Add(new PushNotification
-            {
-                RecipientMemberId = memberId,
-                Content = content,
-                Category = request.Category,
-                Link = link,
-                CreatedOn = now,
-                Status = NotificationStatus.Sent,
-                SentAt = now,
-            });
-        }
-
-        // E-mail: busca os endereços no IdentidadeAPI e deixa pendente para o worker
-        var emailCount = 0;
-        if (request.SendEmail)
-        {
-            try
-            {
-                var wanted = recipients.ToHashSet();
-                var withEmail = (await _recipients.GetAllAsync(BearerToken, ct)).Where(r => wanted.Contains(r.MemberId));
-                foreach (var recipient in withEmail)
-                {
-                    _db.emailNotifications.Add(new EmailNotification
-                    {
-                        RecipientMemberId = recipient.MemberId,
-                        Email = recipient.Email.Trim(),
-                        Content = content,
-                        Category = request.Category,
-                        Link = link,
-                        CreatedOn = now,
-                        Status = NotificationStatus.Pending,
-                    });
-                    emailCount++;
-                }
-            }
-            catch (Exception ex)
-            {
-                // As notificações in-app são gravadas mesmo assim
-                _logger.LogWarning(ex, "Não foi possível obter os e-mails dos destinatários; apenas notificações in-app serão criadas.");
-            }
-        }
-
-        await _db.SaveChangesAsync(ct);
-
-        return Ok(new ResponseDto { Result = new { InApp = recipients.Count, Emails = emailCount } });
-    }
-
     /// <summary>Notificações in-app do colaborador autenticado (mais recentes primeiro).</summary>
     [HttpGet("me")]
     public async Task<ActionResult> Mine([FromQuery] bool unreadOnly = false, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)

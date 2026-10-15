@@ -1,9 +1,14 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Middleware;
 using Intranet.Services.DocumentoAPI.Data;
 using Intranet.Services.DocumentoAPI.Extensions;
+using Intranet.Services.DocumentoAPI.Models.DTOs;
 using Intranet.Services.DocumentoAPI.Repository.IRepository;
+using Intranet.Services.DocumentoAPI.Services;
 using Intranet.Services.EscalaAPI.Repository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 
 public partial class Program
@@ -12,16 +17,39 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Logs estruturados
+        builder.AddSharedSerilog();
+
         // Add services to the container.
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
             options.UseNpgsql(connectionString);
+            // Migrations escritas à mão: diferenças cosméticas no snapshot não devem impedir a inicialização
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         builder.Services.AddScoped<IUnityOfWork, UnityOfWork>();
+
+        // Lojas do GC: papéis que podem gerenciar (Lojas:RolesGerenciamento)
+        builder.Services.AddSingleton<LojaPermissoes>();
+
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? new[] { "http://localhost:5173", "http://10.11.10.5:31" };
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("DefaultPolicy", policy =>
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials()
+                      .WithExposedHeaders("X-Pagination", "Content-Disposition");
+            });
+        });
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -66,8 +94,12 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
+        app.UseCors("DefaultPolicy");
+        app.UseSharedExceptionHandling();
 
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllers();

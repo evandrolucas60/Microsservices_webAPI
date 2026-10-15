@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Repository.IRepository;
@@ -69,7 +69,9 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("GetByProfile/{profileId:Guid}")]
+        // Perfil público: cargo/setor e formação aparecem para visitantes
+    [AllowAnonymous]
+    [HttpGet("GetByProfile/{profileId:Guid}")]
         public async Task<ActionResult<Education>> GetByProfileAsync(Guid profileId)
         {
             try

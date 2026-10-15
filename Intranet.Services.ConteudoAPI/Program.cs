@@ -1,3 +1,6 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
 using AutoMapper;
 using Intranet.Services.ConteudoAPI;
 using Intranet.Services.ConteudoAPI.Data;
@@ -15,6 +18,9 @@ public partial class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Logs estruturados
+        builder.AddSharedSerilog();
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -34,23 +40,11 @@ public partial class Program
         builder.Services.AddScoped<BackendApiAuthenticationHttpClientHandler>();
         builder.Services.AddHttpContextAccessor();
 
-        // Newsletter dos artigos (NotificacaoAPI)
-        builder.Services.AddHttpClient(NewsletterClient.HttpClientName, client =>
-        {
-            client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:NotificacaoAPI"] ?? "https://localhost:7009/");
-            client.Timeout = TimeSpan.FromSeconds(15);
-        }).AcceptLocalDevCertificate(builder.Environment);
+        // Mensageria (MassTransit + RabbitMQ): newsletter e notificações publicadas para o
+        // NotificacaoAPI; autoria (membro do token) consultada no IdentidadeAPI
+        builder.AddMessaging();
         builder.Services.AddScoped<INewsletterClient, NewsletterClient>();
-        // Notificações de curtidas/comentários (mesmo HttpClient do NotificacaoAPI)
         builder.Services.AddScoped<INotificationClient, NotificationClient>();
-
-        // Autoria dos artigos/comentários resolvida pelo token (IdentidadeAPI)
-        builder.Services.AddMemoryCache();
-        builder.Services.AddHttpClient(MemberResolver.HttpClientName, client =>
-        {
-            client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:IdentidadeAPI"] ?? "https://localhost:7004/");
-            client.Timeout = TimeSpan.FromSeconds(10);
-        }).AcceptLocalDevCertificate(builder.Environment);
         builder.Services.AddScoped<IMemberResolver, MemberResolver>();
 
         // AutoMapper 13+ já inclui a integração com DI (sem AutoMapper.Extensions.Microsoft.DependencyInjection)
@@ -111,8 +105,10 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
         app.UseCors("DefaultPolicy");
+        app.UseSharedExceptionHandling();
         app.UseAuthentication();
         app.UseAuthorization();
 

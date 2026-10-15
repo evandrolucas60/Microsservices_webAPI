@@ -1,3 +1,6 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
 using Intranet.Services.ComunicacaoAPI.Data;
 using Intranet.Services.ComunicacaoAPI.Extensions;
 using Intranet.Services.ComunicacaoAPI.Services;
@@ -5,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs estruturados
+builder.AddSharedSerilog();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -14,17 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 // IdentidadeAPI (membro do token, validação de destinatários) e NotificacaoAPI
-builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient(IdentidadeClient.HttpClientName, client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:IdentidadeAPI"] ?? "https://localhost:7004/");
-    client.Timeout = TimeSpan.FromSeconds(10);
-}).AcceptLocalDevCertificate(builder.Environment);
-builder.Services.AddHttpClient(NotificationClient.HttpClientName, client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:NotificacaoAPI"] ?? "https://localhost:7009/");
-    client.Timeout = TimeSpan.FromSeconds(10);
-}).AcceptLocalDevCertificate(builder.Environment);
+builder.AddMessaging();
 builder.Services.AddScoped<IdentidadeClient>();
 builder.Services.AddScoped<NotificationClient>();
 
@@ -63,28 +59,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSharedRequestLogging();
 app.UseHttpsRedirection();
 app.UseCors("DefaultPolicy");
+app.UseSharedExceptionHandling();
 
-// Erro inesperado vira JSON depois do CORS: o navegador recebe a mensagem em vez de
-// um genérico "Failed to fetch" (a página de exceção não leva os cabeçalhos CORS)
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (Exception ex) when (!context.Response.HasStarted && !context.RequestAborted.IsCancellationRequested)
-    {
-        app.Logger.LogError(ex, "Erro não tratado em {Path}", context.Request.Path);
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await context.Response.WriteAsJsonAsync(new Intranet.Services.ComunicacaoAPI.Models.DTOs.ResponseDto
-        {
-            IsSuccess = false,
-            Message = "Erro interno no serviço de comunicação. Tente novamente.",
-        });
-    }
-});
 
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 

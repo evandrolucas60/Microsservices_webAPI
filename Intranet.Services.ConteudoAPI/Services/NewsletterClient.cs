@@ -1,33 +1,27 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using BuildingBlocks.Contracts.Notificacoes;
 using Intranet.Services.ConteudoAPI.Models.DTOs;
+using MassTransit;
 
 namespace Intranet.Services.ConteudoAPI.Services;
 
 public interface INewsletterClient
 {
-    /// <summary>Pede ao NotificacaoAPI o envio da newsletter. Retorna false se não foi aceito.</summary>
+    /// <summary>Publica o pedido de newsletter no RabbitMQ. Retorna false se não foi possível publicar.</summary>
     Task<bool> QueueArticleAsync(ArticleNewsletterRequest request, string? bearerToken, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Cliente HTTP do NotificacaoAPI. Falhas não interrompem a publicação do artigo:
-/// são registradas em log e o artigo fica com NewsletterQueuedAt = null.
+/// Newsletter assíncrona: publica NewsletterArtigoSolicitada (o NotificacaoAPI consome e envia).
+/// Falhas não interrompem a publicação do artigo: ficam em log e o artigo fica com NewsletterQueuedAt = null.
 /// </summary>
 public class NewsletterClient : INewsletterClient
 {
-    public const string HttpClientName = "Notificacao";
-
-    public const string ServiceKeyHeader = "X-Api-Key";
-
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
+    private readonly IPublishEndpoint _publish;
     private readonly ILogger<NewsletterClient> _logger;
 
-    public NewsletterClient(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<NewsletterClient> logger)
+    public NewsletterClient(IPublishEndpoint publish, ILogger<NewsletterClient> logger)
     {
-        _httpClientFactory = httpClientFactory;
-        _configuration = configuration;
+        _publish = publish;
         _logger = logger;
     }
 
@@ -35,32 +29,20 @@ public class NewsletterClient : INewsletterClient
     {
         try
         {
-            var client = _httpClientFactory.CreateClient(HttpClientName);
-
-            using var message = new HttpRequestMessage(HttpMethod.Post, "api/newsletter/articles")
+            await _publish.Publish(new NewsletterArtigoSolicitada
             {
-                Content = JsonContent.Create(request),
-            };
-            if (!string.IsNullOrWhiteSpace(bearerToken))
-            {
-                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-            }
-            // Credencial de serviço: só o ConteudoAPI pode disparar newsletters
-            message.Headers.Add(ServiceKeyHeader, _configuration["Newsletter:ServiceKey"] ?? string.Empty);
-
-            using var response = await client.SendAsync(message, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("NotificacaoAPI recusou a newsletter do artigo {ArticleId}: HTTP {Status}",
-                    request.ArticleId, (int)response.StatusCode);
-                return false;
-            }
-
+                ArtigoId = request.ArticleId,
+                Tipo = request.Type,
+                Titulo = request.Title,
+                Resumo = request.Summary,
+                CapaUrl = request.CoverImageUrl,
+                AutorMemberId = request.AuthorMemberId,
+            }, ct);
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Não foi possível contatar o NotificacaoAPI para o artigo {ArticleId}", request.ArticleId);
+            _logger.LogError(ex, "Não foi possível publicar a newsletter do artigo {ArticleId}", request.ArticleId);
             return false;
         }
     }

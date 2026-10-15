@@ -1,3 +1,9 @@
+using MassTransit;
+using BuildingBlocks.Shared.Http;
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
+using Intranet.Services.IdentidadeAPI.Consumers;
 using AutoMapper;
 using Intranet.Services.IdentidadeAPI;
 using Intranet.Services.IdentidadeAPI.Data;
@@ -17,6 +23,11 @@ public partial class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Logs estruturados (Serilog) e mensageria entre serviços (MassTransit + RabbitMQ):
+        // o IdentidadeAPI responde às consultas de colaboradores dos demais serviços
+        builder.AddSharedSerilog();
+        builder.AddMessaging(x => x.AddConsumers(typeof(ObterMembroPorUsuarioConsumer).Assembly));
 
         // Add services to the container.
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -41,11 +52,13 @@ public partial class Program
 
         builder.Services.AddHttpClient("Work", u => u.BaseAddress =
             new Uri(builder.Configuration
-            ["ServicesUrls:BaseAddress"])).AddHttpMessageHandler<BackendApiAuthenticationHttpClientHandler>();
+            ["ServicesUrls:BaseAddress"])).AddHttpMessageHandler<BackendApiAuthenticationHttpClientHandler>()
+            .AcceptLocalDevCertificate(builder.Environment);
 
         builder.Services.AddHttpClient("Education", u => u.BaseAddress =
             new Uri(builder.Configuration
-            ["ServicesUrls:BaseAddress"])).AddHttpMessageHandler<BackendApiAuthenticationHttpClientHandler>();
+            ["ServicesUrls:BaseAddress"])).AddHttpMessageHandler<BackendApiAuthenticationHttpClientHandler>()
+            .AcceptLocalDevCertificate(builder.Environment);
 
         // AutoMapper 13+ já inclui a integração com DI (sem AutoMapper.Extensions.Microsoft.DependencyInjection)
         builder.Services.AddAutoMapper(cfg => { }, typeof(MappingConfig));
@@ -104,8 +117,10 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
         app.UseCors("DefaultPolicy");
+        app.UseSharedExceptionHandling();
         app.UseAuthentication();
         app.UseAuthorization();
 

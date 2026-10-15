@@ -1,3 +1,6 @@
+using BuildingBlocks.Shared.Logging;
+using BuildingBlocks.Shared.Messaging;
+using BuildingBlocks.Shared.Middleware;
 using Intranet.Services.ComunidadesAPI.Data;
 using Intranet.Services.ComunidadesAPI.Extensions;
 using Intranet.Services.ComunidadesAPI.Services;
@@ -5,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs estruturados
+builder.AddSharedSerilog();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -14,17 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 // IdentidadeAPI (membro do token, validação de membros) e NotificacaoAPI
-builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient(IdentidadeClient.HttpClientName, client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:IdentidadeAPI"] ?? "https://localhost:7004/");
-    client.Timeout = TimeSpan.FromSeconds(10);
-}).AcceptLocalDevCertificate(builder.Environment);
-builder.Services.AddHttpClient(NotificationClient.HttpClientName, client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ServicesUrls:NotificacaoAPI"] ?? "https://localhost:7009/");
-    client.Timeout = TimeSpan.FromSeconds(10);
-}).AcceptLocalDevCertificate(builder.Environment);
+builder.AddMessaging();
 builder.Services.AddScoped<IdentidadeClient>();
 builder.Services.AddScoped<NotificationClient>();
 
@@ -57,8 +53,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSharedRequestLogging();
 app.UseHttpsRedirection();
 app.UseCors("DefaultPolicy");
+app.UseSharedExceptionHandling();
 
 app.UseAuthentication();
 app.UseAuthorization();

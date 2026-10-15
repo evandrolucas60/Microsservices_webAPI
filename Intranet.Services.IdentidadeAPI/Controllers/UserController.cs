@@ -185,7 +185,11 @@ public class UserController : ControllerBase
         return Ok(_response);
     }
 
-    /// <summary>Perfil público de um colaborador (sem endereço), para usuários autenticados.</summary>
+    /// <summary>
+    /// Perfil público de um colaborador (sem endereço). Aberto também a visitantes, que não
+    /// recebem dados pessoais (telefone, nascimento, gênero, matrícula e id de usuário).
+    /// </summary>
+    [AllowAnonymous]
     [HttpGet("GetMemberInfo")]
     public async Task<ActionResult> GetProfilebyMemberId(Guid memberId)
     {
@@ -211,6 +215,17 @@ public class UserController : ControllerBase
 
             user.Profile.Work = work;
             user.Profile.Educations = educations;
+
+            // Endereço nunca faz parte do perfil público
+            user.Member.Address = null;
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                user.Member.Phone = null;
+                user.Member.UserId = null;
+                user.Member.BirthDate = null;
+                user.Profile.Gender = null;
+                if (user.Profile.Work is not null) user.Profile.Work.Registration = string.Empty;
+            }
 
             _response.Result = user;
         }
