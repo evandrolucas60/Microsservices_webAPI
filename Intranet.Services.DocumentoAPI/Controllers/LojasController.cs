@@ -15,7 +15,8 @@ namespace Intranet.Services.DocumentoAPI.Controllers;
 
 /// <summary>
 /// Lojas do GC (Gerenciamento por Categoria) com seções fixas e seus arquivos (fotos e documentos).
-/// Qualquer usuário logado consulta; criar/alterar/remover exige um dos papéis de gerenciamento
+/// A consulta (lojas, seções e arquivos) é pública, inclusive para usuários anônimos — somente leitura;
+/// criar/alterar/remover exige login e um dos papéis de gerenciamento
 /// (padrão: superAdmin ou GC — veja <see cref="LojaPermissoes"/>).
 /// </summary>
 [Route("api/lojas")]
@@ -73,18 +74,24 @@ public class LojasController : ControllerBase
 
     private static string NomeJaExiste(string nome) => $"Já existe uma loja chamada \"{nome}\".";
 
-    // ---------------------------------------------------------------- consulta
+    // ---------------------------------------------------------------- consulta (pública, somente leitura)
 
-    /// <summary>Permissões do usuário logado (a interface mostra ou esconde os controles de gerenciamento).</summary>
+    /// <summary>
+    /// Permissões do usuário (a interface mostra ou esconde os controles de gerenciamento).
+    /// Sem login devolve podeGerenciar = false.
+    /// </summary>
     [HttpGet("permissoes")]
+    [AllowAnonymous]
     public ActionResult Permissoes() => Ok(new ResponseDto { Result = new { podeGerenciar = PodeGerenciar } });
 
     /// <summary>Seções fixas de toda loja, na ordem oficial.</summary>
     [HttpGet("secoes")]
+    [AllowAnonymous]
     public ActionResult Secoes() => Ok(new ResponseDto { Result = LojaSecoes.Todas });
 
     /// <summary>Lojas (busca opcional pelo nome) com a quantidade de arquivos por seção e o total.</summary>
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult> Listar([FromQuery] string? busca, CancellationToken ct)
     {
         var query = _db.lojas.AsNoTracking();
@@ -130,6 +137,7 @@ public class LojasController : ControllerBase
 
     /// <summary>Loja com todas as seções fixas e os metadados dos arquivos de cada uma.</summary>
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult> Detalhe(int id, CancellationToken ct)
     {
         var loja = await _db.lojas.AsNoTracking()
@@ -165,8 +173,12 @@ public class LojasController : ControllerBase
         });
     }
 
-    /// <summary>Conteúdo do arquivo: imagem exibida no navegador, documento sempre como download.</summary>
+    /// <summary>
+    /// Conteúdo do arquivo: imagem exibida no navegador, documento sempre como download.
+    /// Público como o restante da consulta: os documentos são da mesma loja/seção que as imagens.
+    /// </summary>
     [HttpGet("arquivos/{arquivoId:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult> Baixar(int arquivoId, CancellationToken ct)
     {
         var arquivo = await _db.lojaArquivos.AsNoTracking()

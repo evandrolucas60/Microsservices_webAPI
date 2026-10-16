@@ -3,6 +3,7 @@ using Intranet.Services.ComunidadesAPI.Data;
 using Intranet.Services.ComunidadesAPI.Models;
 using Intranet.Services.ComunidadesAPI.Models.DTOs;
 using Intranet.Services.ComunidadesAPI.Services;
+using BuildingBlocks.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,16 +26,22 @@ public sealed class GroupAccess
 
     public bool IsGlobalAdmin { get; init; }
 
+    /// <summary>Papel superAdmin do portal (painel de gestão).</summary>
+    public bool IsSuperAdmin { get; init; }
+
     public bool IsMember => Role is not null;
     public bool IsOwner => Role == GroupRoles.Owner;
+
+    /// <summary>Edita nome/descrição/capa e exclui o grupo: somente o dono ou o superAdmin.</summary>
+    public bool CanEditGroup => IsSuperAdmin || IsOwner;
 
     /// <summary>Vê o conteúdo do grupo (posts, membros): membros e Admin global.</summary>
     public bool CanView => IsMember || IsGlobalAdmin;
 
-    /// <summary>Edita, troca a capa, aprova solicitações, gerencia membros e modera posts.</summary>
+    /// <summary>Aprova solicitações, gerencia membros e modera posts.</summary>
     public bool CanManage => IsGlobalAdmin || Role is GroupRoles.Owner or GroupRoles.Admin;
 
-    /// <summary>Promove/rebaixa admins e exclui o grupo: somente o dono (ou Admin global).</summary>
+    /// <summary>Promove/rebaixa admins: somente o dono (ou Admin global).</summary>
     public bool CanManageAdmins => IsGlobalAdmin || IsOwner;
 }
 
@@ -63,6 +70,7 @@ public abstract class GroupControllerBase : ControllerBase
 
     protected string? CurrentUserId => User.FindFirst("id")?.Value;
     protected bool IsAdmin => User.IsInRole(AdminRole);
+    protected bool IsSuperAdmin => User.HasAnyRole(AdminPolicies.Roles(HttpContext.RequestServices.GetRequiredService<IConfiguration>()));
 
     protected string? BearerToken
     {
@@ -108,6 +116,7 @@ public abstract class GroupControllerBase : ControllerBase
             MemberId = memberId,
             Role = memberId is null ? null : NormalizeRole(group.Role),
             IsGlobalAdmin = IsAdmin,
+            IsSuperAdmin = IsSuperAdmin,
         };
     }
 

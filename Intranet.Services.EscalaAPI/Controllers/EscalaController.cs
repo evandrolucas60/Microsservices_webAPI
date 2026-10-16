@@ -29,7 +29,7 @@ public class EscalaUpsertDto
 
 /// <summary>
 /// Escala da T.I. A consulta é pública; criar, editar e excluir é restrito aos papéis (roles)
-/// superAdmin e TI do login. Só colaboradores do setor T.I podem ser escalados; nome, cargo,
+/// superAdmin, Admin e TI do login. Só colaboradores do setor T.I podem ser escalados; nome, cargo,
 /// e-mail e foto são preenchidos pelo servidor a partir do colaborador escolhido.
 /// </summary>
 [Route("api/[controller]")]
@@ -64,7 +64,7 @@ public class EscalaController : ControllerBase
     private static ObjectResult Error(int status, string message) => new(new { isSuccess = false, message }) { StatusCode = status };
 
     /// <summary>
-    /// Pode criar/editar/excluir escalas: papel (role) do login superAdmin ou TI, sem diferenciar
+    /// Pode criar/editar/excluir escalas: papel (role) do login superAdmin, Admin ou TI, sem diferenciar
     /// maiúsculas. Configurável em Escala:RolesGerenciamento.
     /// </summary>
     private Task<bool> PodeGerenciarAsync(CancellationToken ct)
@@ -72,7 +72,7 @@ public class EscalaController : ControllerBase
         _ = ct;
         var permitidos = _configuration.GetSection("Escala:RolesGerenciamento").Get<string[]>() is { Length: > 0 } roles
             ? roles
-            : new[] { "superAdmin", "TI" };
+            : new[] { "superAdmin", "Admin", "TI" };
         var podeGerenciar = User.Identity?.IsAuthenticated == true && User.Claims
             .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
             .Any(c => permitidos.Contains(c.Value.Trim(), StringComparer.OrdinalIgnoreCase));
@@ -127,7 +127,7 @@ public class EscalaController : ControllerBase
     [Authorize]
     public async Task<ActionResult> Colaboradores(CancellationToken ct)
     {
-        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin ou TI podem gerenciar as escalas.");
+        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin, Admin ou TI podem gerenciar as escalas.");
         try
         {
             var lista = await _identidade.GetColaboradoresDoSetorAsync(BearerToken, ct);
@@ -146,7 +146,7 @@ public class EscalaController : ControllerBase
     [Authorize]
     public async Task<ActionResult> Post([FromBody] EscalaUpsertDto dto, CancellationToken ct)
     {
-        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin ou TI podem criar escalas.");
+        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin, Admin ou TI podem criar escalas.");
 
         var escala = new Escala();
         var erro = await AplicarAsync(dto, escala, ct);
@@ -161,7 +161,7 @@ public class EscalaController : ControllerBase
     [Authorize]
     public async Task<ActionResult> Put(int id, [FromBody] EscalaUpsertDto dto, CancellationToken ct)
     {
-        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin ou TI podem editar escalas.");
+        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin, Admin ou TI podem editar escalas.");
 
         var escala = await _uof.EscalaRepository.GetAsync(c => c.Id == id);
         if (escala is null) return Error(StatusCodes.Status404NotFound, "Escala não encontrada.");
@@ -178,7 +178,7 @@ public class EscalaController : ControllerBase
     [Authorize]
     public async Task<ActionResult> Delete(int id, CancellationToken ct)
     {
-        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin ou TI podem excluir escalas.");
+        if (!await PodeGerenciarAsync(ct)) return Error(StatusCodes.Status403Forbidden, "Apenas superAdmin, Admin ou TI podem excluir escalas.");
 
         var escala = await _uof.EscalaRepository.GetAsync(c => c.Id == id);
         if (escala is null) return Error(StatusCodes.Status404NotFound, "Escala não encontrada.");

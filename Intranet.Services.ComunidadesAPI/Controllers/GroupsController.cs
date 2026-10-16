@@ -41,12 +41,13 @@ public class GroupsController : GroupControllerBase
     private GroupDto Complete(GroupDto dto)
     {
         dto.MyRole = NormalizeRole(dto.MyRole);
-        var access = new GroupAccess { Role = dto.MyRole, IsGlobalAdmin = IsAdmin };
+        var access = new GroupAccess { Role = dto.MyRole, IsGlobalAdmin = IsAdmin, IsSuperAdmin = IsSuperAdmin };
         dto.IsMember = access.IsMember;
         dto.IsOwner = access.IsOwner;
         dto.CanView = access.CanView;
         dto.CanManage = access.CanManage;
         dto.CanManageAdmins = access.CanManageAdmins;
+        dto.CanEdit = access.CanEditGroup;
         if (dto.IsMember) dto.HasPendingRequest = false;
         return dto;
     }
@@ -160,13 +161,13 @@ public class GroupsController : GroupControllerBase
         return Ok(new ResponseDto { Result = new { group.GroupId } });
     }
 
-    /// <summary>Edita nome/descrição: dono, admins do grupo ou Admin global.</summary>
+    /// <summary>Edita nome/descrição: somente o dono ou o superAdmin.</summary>
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] GroupUpsertDto dto, CancellationToken ct)
     {
         var access = await GetAccessAsync(id, ct);
         if (access is null) return NotFound(Fail(GrupoNaoEncontrado));
-        if (!access.CanManage) return Forbidden("Apenas o dono ou um admin do grupo pode editá-lo.");
+        if (!access.CanEditGroup) return Forbidden("Apenas o dono do grupo ou o superAdmin pode editá-lo.");
 
         var error = Validate(dto);
         if (error is not null) return BadRequest(Fail(error));
@@ -180,13 +181,13 @@ public class GroupsController : GroupControllerBase
         return Ok(new ResponseDto { Result = new { group.GroupId } });
     }
 
-    /// <summary>Exclui o grupo e todo o conteúdo: somente o dono (ou Admin global).</summary>
+    /// <summary>Exclui o grupo e todo o conteúdo: somente o dono ou o superAdmin.</summary>
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id, CancellationToken ct)
     {
         var access = await GetAccessAsync(id, ct);
         if (access is null) return NotFound(Fail(GrupoNaoEncontrado));
-        if (!access.CanManageAdmins) return Forbidden("Apenas o dono pode excluir o grupo.");
+        if (!access.CanEditGroup) return Forbidden("Apenas o dono do grupo ou o superAdmin pode excluí-lo.");
 
         // Membros, solicitações, capa, posts, imagens, curtidas e comentários em cascata
         await _db.groups.Where(g => g.GroupId == id).ExecuteDeleteAsync(ct);
@@ -219,7 +220,7 @@ public class GroupsController : GroupControllerBase
         return ImageFile(cover.Data, cover.ContentType);
     }
 
-    /// <summary>Envia ou troca a capa (multipart/form-data, campo "file"): dono, admins ou Admin global.</summary>
+    /// <summary>Envia ou troca a capa (multipart/form-data, campo "file"): dono ou superAdmin.</summary>
     [HttpPut("{id:int}/cover")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ImageValidator.MaxRequestBytes)]
@@ -228,7 +229,7 @@ public class GroupsController : GroupControllerBase
     {
         var access = await GetAccessAsync(id, ct);
         if (access is null) return NotFound(Fail(GrupoNaoEncontrado));
-        if (!access.CanManage) return Forbidden("Apenas o dono ou um admin do grupo pode trocar a capa.");
+        if (!access.CanEditGroup) return Forbidden("Apenas o dono do grupo ou o superAdmin pode trocar a capa.");
 
         var (image, error) = await ImageValidator.ReadAsync(file, ct);
         if (image is null) return BadRequest(Fail(error!));
@@ -253,13 +254,13 @@ public class GroupsController : GroupControllerBase
         return Ok(new ResponseDto { Result = new { HasCover = true, CoverVersion = now.Ticks } });
     }
 
-    /// <summary>Remove a capa: dono, admins ou Admin global.</summary>
+    /// <summary>Remove a capa: dono ou superAdmin.</summary>
     [HttpDelete("{id:int}/cover")]
     public async Task<ActionResult> RemoveCover(int id, CancellationToken ct)
     {
         var access = await GetAccessAsync(id, ct);
         if (access is null) return NotFound(Fail(GrupoNaoEncontrado));
-        if (!access.CanManage) return Forbidden("Apenas o dono ou um admin do grupo pode remover a capa.");
+        if (!access.CanEditGroup) return Forbidden("Apenas o dono do grupo ou o superAdmin pode remover a capa.");
 
         await _db.groupCovers.Where(c => c.GroupId == id).ExecuteDeleteAsync(ct);
         await _db.groups.Where(g => g.GroupId == id)

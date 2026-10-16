@@ -45,7 +45,8 @@ public class ArticlesController : ContentControllerBase
 
     // ---------------------------------------------------------------- Artigos
 
-    /// <summary>Lista paginada (mais recentes primeiro). Filtros: type, search.</summary>
+    /// <summary>Lista paginada (mais recentes primeiro). Filtros: type, search. Leitura pública.</summary>
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult> List(
         [FromQuery] string? type,
@@ -105,6 +106,8 @@ public class ArticlesController : ContentControllerBase
         return Ok(new ResponseDto { Result = items });
     }
 
+    /// <summary>Leitura pública; sem token, likedByMe e isAuthor vêm como false.</summary>
+    [AllowAnonymous]
     [HttpGet("{id:int}")]
     public async Task<ActionResult> Get(int id)
     {
@@ -277,6 +280,8 @@ public class ArticlesController : ContentControllerBase
 
     // ----------------------------------------------------------- Comentários
 
+    /// <summary>Comentários do artigo (leitura pública; sem token, isAuthor vem como false).</summary>
+    [AllowAnonymous]
     [HttpGet("{id:int}/comments")]
     public async Task<ActionResult> ListComments(int id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {

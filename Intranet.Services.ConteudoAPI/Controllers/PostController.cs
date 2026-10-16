@@ -54,6 +54,8 @@ public class PostController : ContentControllerBase
         return Ok(new ResponseDto { Result = posts });
     }
 
+    // Feed aberto ao público (somente leitura): sem token, likedByMe vem false.
+    [AllowAnonymous]
     [HttpGet("filter/date/pagination")]
     public async Task<ActionResult> GetPostsByFilterDate([FromQuery] PostsParametersFilterDate parameters)
     {

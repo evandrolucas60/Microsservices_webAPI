@@ -42,11 +42,14 @@ namespace Intranet.Services.ComunidadesAPI.Models.DTOs
         public bool IsMember { get; set; }
         public bool IsOwner { get; set; }
 
-        /// <summary>Pode editar, trocar a capa, aprovar solicitações e gerenciar membros/posts.</summary>
+        /// <summary>Pode aprovar solicitações e gerenciar membros/posts.</summary>
         public bool CanManage { get; set; }
 
-        /// <summary>Pode promover/rebaixar admins e excluir o grupo (dono ou Admin global).</summary>
+        /// <summary>Pode promover/rebaixar admins (dono ou Admin global).</summary>
         public bool CanManageAdmins { get; set; }
+
+        /// <summary>Pode editar nome/descrição/capa e excluir o grupo (dono ou superAdmin).</summary>
+        public bool CanEdit { get; set; }
 
         /// <summary>Pode ver o conteúdo (posts, membros) — membros e Admin global.</summary>
         public bool CanView { get; set; }

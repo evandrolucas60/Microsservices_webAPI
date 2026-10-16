@@ -1,0 +1,47 @@
+[
+  {
+    "Name": "All_services",
+    "Projects": [
+      {
+        "Path": "Intranet.Services.AuthAPI\\Intranet.Services.AuthAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.EscalaAPI\\Intranet.Services.EscalaAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.IdentidadeAPI\\Intranet.Services.IdentidadeAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.ConteudoAPI\\Intranet.Services.ConteudoAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.DocumentoAPI\\Intranet.Services.DocumentoAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.ComunicacaoAPI\\Intranet.Services.ComunicacaoAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.NotificacaoAPI\\Intranet.Services.NotificacaoAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.ComunidadesAPI\\Intranet.Services.ComunidadesAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.AuditoriaAPI\\Intranet.Services.AuditoriaAPI.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Intranet.Services.GerenciamentoCategoriaAPI\\Intranet.Services.GerenciamentoCategoriaAPI.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

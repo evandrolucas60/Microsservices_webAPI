@@ -12,11 +12,15 @@ public static class AdminPolicies
 {
     public const string SuperAdmin = "SuperAdmin";
 
-    public static WebApplicationBuilder AddAdminPolicies(this WebApplicationBuilder builder)
-    {
-        var roles = builder.Configuration.GetSection("Administracao:Roles").Get<string[]>() is { Length: > 0 } configured
+    /// <summary>Papéis de superAdmin configurados (padrão: superAdmin).</summary>
+    public static string[] Roles(IConfiguration configuration) =>
+        configuration.GetSection("Administracao:Roles").Get<string[]>() is { Length: > 0 } configured
             ? configured
             : new[] { "superAdmin" };
+
+    public static WebApplicationBuilder AddAdminPolicies(this WebApplicationBuilder builder)
+    {
+        var roles = Roles(builder.Configuration);
 
         builder.Services.AddAuthorization(options =>
             options.AddPolicy(SuperAdmin, policy => policy
