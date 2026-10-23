@@ -336,7 +336,7 @@ public class AdminConteudoController : ContentControllerBase
             .ToListAsync();
 
         // Mesmo endereço público usado no envio da imagem (ArticlesController)
-        var baseUrl = (_configuration["PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var baseUrl = (_configuration["PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}{Request.PathBase}").TrimEnd('/');
 
         WritePagination(total, pageNumber, pageSize);
         return Ok(new ResponseDto

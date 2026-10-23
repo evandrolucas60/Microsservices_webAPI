@@ -61,8 +61,14 @@ namespace Intranet.Services.AuthAPI.Service
             return refreshToken;
         }
 
-        public ClaimsPrincipal GetClaimsPrincipalFromExpiredToken(string token, IConfiguration _config)
+        /// <summary>
+        /// Principal de um access token (mesmo expirado) com assinatura válida; null se o token estiver
+        /// vazio, malformado, com assinatura inválida ou com outro algoritmo (antes lançava exceção → 500).
+        /// </summary>
+        public ClaimsPrincipal? GetClaimsPrincipalFromExpiredToken(string token, IConfiguration _config)
         {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
             var secretKey = _config["JWT:SecretKey"] ?? throw new InvalidOperationException("Invalid key");
             var tokenValidationParameters = new TokenValidationParameters
             {
@@ -74,15 +80,23 @@ namespace Intranet.Services.AuthAPI.Service
                 ValidateLifetime = false,
             };
             var tokenHandler = new JwtSecurityTokenHandler();
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters,
-                                                       out SecurityToken securityToken);
-            if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,
-                StringComparison.InvariantCultureIgnoreCase))
+            try
             {
-                throw new SecurityTokenException("Ivalid token");
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters,
+                                                           out SecurityToken securityToken);
+                if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,
+                    StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return null;
+                }
+                return principal;
             }
-            return principal;
+            catch (Exception ex) when (ex is ArgumentException or SecurityTokenException)
+            {
+                // Token malformado (ArgumentException) ou inválido (assinatura, formato...)
+                return null;
+            }
         }
     }
 }

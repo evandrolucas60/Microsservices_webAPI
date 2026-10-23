@@ -413,8 +413,8 @@ public class ArticlesController : ContentControllerBase
         _db.articleImages.Add(entity);
         await _db.SaveChangesAsync();
 
-        // Endereço público do serviço (configurável quando atrás de proxy)
-        var baseUrl = (_configuration["PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        // Endereço público do serviço: PublicBaseUrl ou o pedido (atrás do gateway, X-Forwarded-* → gateway + /conteudo)
+        var baseUrl = (_configuration["PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}{Request.PathBase}").TrimEnd('/');
         return Ok(new ResponseDto { Result = new { url = $"{baseUrl}/api/articles/images/{entity.ArticleImageId}" } });
     }
 

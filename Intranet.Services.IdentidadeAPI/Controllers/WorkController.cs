@@ -99,6 +99,15 @@ public class WorkController : ControllerBase
     private static DateTime? ToUtcDate(DateTime? value) =>
         value.HasValue ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc) : null;
 
+    // Ajustes antes de gravar: data em UTC e campos opcionais do DTO (null) como "" (colunas NOT NULL)
+    private static void Normalize(Work work)
+    {
+        work.AdmissionDate = ToUtcDate(work.AdmissionDate);
+        work.Company ??= string.Empty;
+        work.Registration ??= string.Empty;
+        work.Description ??= string.Empty;
+    }
+
     /// <summary>
     /// Cria o trabalho do membro ou, se já existir (um por membro), atualiza o existente.
     /// </summary>
@@ -115,7 +124,7 @@ public class WorkController : ControllerBase
             {
                 obj = _mapper.Map<Work>(workDto);
                 obj.WorkId = 0;
-                obj.AdmissionDate = ToUtcDate(obj.AdmissionDate);
+                Normalize(obj);
                 _uof.WorkRepository.Create(obj);
             }
             else
@@ -123,7 +132,7 @@ public class WorkController : ControllerBase
                 var workId = existing.WorkId;
                 _mapper.Map(workDto, existing);
                 existing.WorkId = workId;
-                existing.AdmissionDate = ToUtcDate(existing.AdmissionDate);
+                Normalize(existing);
                 _uof.WorkRepository.Update(existing);
                 obj = existing;
             }
@@ -147,7 +156,7 @@ public class WorkController : ControllerBase
         if (id != workDto.WorkId)
         {
             _logger.LogWarning("Dados inválidos");
-            return BadRequest("Dados inválidos");
+            return BadRequest(new ResponseDto { IsSuccess = false, Message = "Dados inválidos: o registro de trabalho não confere." });
         }
 
         // Precisa ser dono do registro atual e do membro informado (impede "mover" para outro membro)
@@ -157,7 +166,7 @@ public class WorkController : ControllerBase
         try
         {
             Work obj = _mapper.Map<Work>(workDto);
-            obj.AdmissionDate = ToUtcDate(obj.AdmissionDate);
+            Normalize(obj);
             _uof.WorkRepository.Update(obj);
             await _uof.CommitAsync();
 

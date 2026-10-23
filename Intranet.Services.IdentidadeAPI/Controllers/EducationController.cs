@@ -271,7 +271,7 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
             try
             {
                 if (patchList == null || !patchList.Any())
-                    return BadRequest("Lista de educações vazia.");
+                    return BadRequest(new ResponseDto { IsSuccess = false, Message = "Nenhuma formação foi enviada." });
 
                 // Busca apenas as educations do profile (no banco, não em memória)
                 var profileEducations = (await _uof.EducationRepository
@@ -292,7 +292,7 @@ namespace Intranet.Services.IdentidadeAPI.Controllers
                             !patch.FromYear.HasValue ||
                             !patch.ToYear.HasValue)
                         {
-                            return BadRequest("Para incluir uma formação informe instituição, curso, início e término.");
+                            return BadRequest(new ResponseDto { IsSuccess = false, Message = "Para incluir uma formação informe instituição, nível, início e término." });
                         }
 
                         entity = new Education

@@ -30,7 +30,8 @@ public class RestricoesUsuarioService : IRestricoesUsuarioService
         _logger = logger;
     }
 
-    internal static string CacheKey(string userId) => $"restricoes:{userId}";
+    /// <summary>Chave do cache de restrições do usuário (pública para decoradores, ex.: Escala 5x2).</summary>
+    public static string CacheKey(string userId) => $"restricoes:{userId}";
 
     /// <summary>Usado pelo consumer do evento de alteração.</summary>
     internal static void Atualizar(IMemoryCache cache, RestricoesUsuarioResposta restricoes) =>
