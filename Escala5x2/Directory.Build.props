@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Vale só para os projetos dentro de Escala5x2 (o MSBuild procura este arquivo subindo a partir
+    da pasta do projeto; os projetos da intranet ficam na pasta acima (..) e não o enxergam).
+    Os projetos da intranet referenciados (..\BuildingBlocks\BuildingBlocks.Contracts/Shared, pasta de solução
+    "Intranet" do Escala5x2.sln) ficam fora desta pasta: não recebem estas propriedades nem o gerenciamento
+    central de pacotes e continuam com as versões nos próprios .csproj. A condição abaixo é só uma garantia.
+  -->
+  <!-- Comparação sem diferenciar maiúsculas: no Windows o mesmo caminho pode chegar como "c:\" ou "C:\" -->
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)\').ToUpperInvariant().StartsWith($([System.String]::Copy('$(MSBuildThisFileDirectory)').ToUpperInvariant())))">
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

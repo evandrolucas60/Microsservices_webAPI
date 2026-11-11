@@ -1,0 +1,71 @@
+# Gera as imagens Docker do backend (intranet + Escala 5x2) e publica no GitHub Container Registry:
+#   ghcr.io/<dono>/arconet-<serviço>:latest      (push na main)
+#   ghcr.io/<dono>/arconet-<serviço>:sha-<commit> (toda execução; use para fixar ou voltar uma versão)
+# O deploy no Swarm usa essas imagens (deploy/docker-stack.yml e deploy/README.md).
+name: Imagens Docker
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  imagem:
+    name: ${{ matrix.servico }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { servico: gateway, projeto: Intranet.Gateway/Intranet.Gateway.csproj }
+          - { servico: auth, projeto: Intranet.Services.AuthAPI/Intranet.Services.AuthAPI.csproj }
+          - { servico: escala, projeto: Intranet.Services.EscalaAPI/Intranet.Services.EscalaAPI.csproj }
+          - { servico: identidade, projeto: Intranet.Services.IdentidadeAPI/Intranet.Services.IdentidadeAPI.csproj }
+          - { servico: documento, projeto: Intranet.Services.DocumentoAPI/Intranet.Services.DocumentoAPI.csproj }
+          - { servico: conteudo, projeto: Intranet.Services.ConteudoAPI/Intranet.Services.ConteudoAPI.csproj }
+          - { servico: comunicacao, projeto: Intranet.Services.ComunicacaoAPI/Intranet.Services.ComunicacaoAPI.csproj }
+          - { servico: comunidades, projeto: Intranet.Services.ComunidadesAPI/Intranet.Services.ComunidadesAPI.csproj }
+          - { servico: notificacao, projeto: Intranet.Services.NotificacaoAPI/Intranet.Services.NotificacaoAPI.csproj }
+          - { servico: auditoria, projeto: Intranet.Services.AuditoriaAPI/Intranet.Services.AuditoriaAPI.csproj }
+          - { servico: gc, projeto: Intranet.Services.GerenciamentoCategoriaAPI/Intranet.Services.GerenciamentoCategoriaAPI.csproj }
+          - { servico: escala5x2-employee, projeto: Escala5x2/Services/Employee.Api/Employee.Api.csproj }
+          - { servico: escala5x2-store, projeto: Escala5x2/Services/Store.Api/Store.Api.csproj }
+          - { servico: escala5x2-compliance, projeto: Escala5x2/Services/Compliance.Api/Compliance.Api.csproj }
+          - { servico: escala5x2-scheduling, projeto: Escala5x2/Services/Scheduling.Api/Scheduling.Api.csproj }
+          - { servico: escala5x2-notification, projeto: Escala5x2/Services/Notification.Api/Notification.Api.csproj }
+          - { servico: escala5x2-audit, projeto: Escala5x2/Services/Audit.Api/Audit.Api.csproj }
+          - { servico: escala5x2-dimensionamento, projeto: Escala5x2/Services/Dimensionamento.Api/Dimensionamento.Api.csproj }
+          - { servico: escala5x2-optimization-worker, projeto: Escala5x2/Services/Optimization.Worker/Optimization.Worker.csproj }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/arconet-${{ matrix.servico }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          build-args: PROJECT=${{ matrix.projeto }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.servico }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.servico }}

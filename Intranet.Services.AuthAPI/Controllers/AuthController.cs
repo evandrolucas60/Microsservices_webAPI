@@ -1,5 +1,7 @@
 using BuildingBlocks.Contracts.Administracao;
 using BuildingBlocks.Contracts.Autenticacao;
+using BuildingBlocks.Contracts.Identidade;
+using Intranet.Services.AuthAPI.Filters;
 using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Models.DTOs;
 using Intranet.Services.AuthAPI.Service;
@@ -236,52 +238,105 @@ public class AuthController : ControllerBase
         }
     }
 
+    private const string MensagemEmailJaCadastrado = "Já existe uma conta com este e-mail.";
+
+    /// <summary>
+    /// Cria a conta e publica <see cref="ColaboradorCadastrado"/> para o IdentidadeAPI montar o
+    /// card de Ramais (Member + Work + Profile). Erros: 400/409 { isSuccess, message, errors: { campo: [msgs] } }.
+    /// </summary>
     [HttpPost]
     [Route("register")]
+    [ErrosDeValidacao]
     public async Task<IActionResult> Register([FromBody] RegisterModel model)
     {
-        var userExists = await _userManager.FindByNameAsync(model.Email!);
+        var email = model.Email!.Trim();
 
-        if (userExists != null)
+        if (await _userManager.FindByNameAsync(email) is not null || await _userManager.FindByEmailAsync(email) is not null)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                new Response { Status = "Error", Message = "User Already exists!" });
+            return EmailJaCadastrado();
         }
+
         ApplicationUser user = new()
         {
-            Email = model.Email,
+            Email = email,
             SecurityStamp = Guid.NewGuid().ToString(),
-            UserName = model.Email
+            UserName = email
         };
         var result = await _userManager.CreateAsync(user, model.Password!);
 
         if (!result.Succeeded)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                new Response { Status = "Error", Message = "User Creation failed." });
+            // Cadastro simultâneo com o mesmo e-mail (o índice único do Identity barra o segundo)
+            if (result.Errors.Any(e => e.Code is nameof(IdentityErrorDescriber.DuplicateUserName) or nameof(IdentityErrorDescriber.DuplicateEmail)))
+            {
+                return EmailJaCadastrado();
+            }
+
+            _logger.LogInformation("Cadastro recusado pelo Identity para {Email}: {Codigos}", email, string.Join(", ", result.Errors.Select(e => e.Code)));
+            return BadRequest(new
+            {
+                isSuccess = false,
+                message = ErrosDeValidacaoAttribute.MensagemPadrao,
+                errors = ErrosIdentityPtBr.Traduzir(result.Errors, _userManager.Options.Password),
+            });
         }
 
-        return Ok(new Response { Status = "Success", Message = "User created successfully" });
+        // Dados do card de Ramais → IdentidadeAPI (ColaboradorCadastradoConsumer).
+        // Se o RabbitMQ estiver fora, a conta continua criada: o Member/Profile nasce vazio no
+        // primeiro acesso (GetProfileInfo) e o colaborador completa os dados em Configurações.
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            await _publish.Publish(new ColaboradorCadastrado
+            {
+                UserId = user.Id,
+                Email = email,
+                Nome = model.Nome!.Trim(),
+                Setor = model.Setor!.Trim(),
+                Cargo = model.Cargo!.Trim(),
+                Loja = model.Loja!.Trim(),
+                Ramal = model.Ramal!.Trim(),
+                Telefone = model.Telefone!.Trim(),
+                Em = DateTime.UtcNow,
+            }, timeout.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Conta {UserId} ({Email}) criada, mas não foi possível publicar ColaboradorCadastrado; o card de Ramais ficará incompleto até o colaborador preencher em Configurações. Dados: setor={Setor}, cargo={Cargo}, loja={Loja}, ramal={Ramal}",
+                user.Id, email, model.Setor, model.Cargo, model.Loja, model.Ramal);
+        }
+
+        return Ok(new { isSuccess = true, message = "Conta criada! Faça login." });
     }
+
+    private ObjectResult EmailJaCadastrado() => StatusCode(StatusCodes.Status409Conflict, new
+    {
+        isSuccess = false,
+        message = MensagemEmailJaCadastrado,
+        errors = new Dictionary<string, string[]> { [ErrosIdentityPtBr.CampoEmail] = [MensagemEmailJaCadastrado] },
+    });
 
     [HttpPost]
     [Route("RefreshToken")]
     public async Task<IActionResult> RefreshToken(TokenModel tokenModel)
     {
-        if (tokenModel == null)
+        // Corpo, tokens ausentes ou access token malformado → 400 (antes estouravam como 500)
+        if (tokenModel == null || string.IsNullOrWhiteSpace(tokenModel.AccessToken) || string.IsNullOrWhiteSpace(tokenModel.RefreshToken))
         {
             return BadRequest("Invalid client request");
         }
-        string? accessToken = tokenModel.AccessToken ?? throw new ArgumentException(nameof(tokenModel));
-        string? refreshToken = tokenModel.RefreshToken ?? throw new ArgumentException(nameof(tokenModel));
+        string accessToken = tokenModel.AccessToken;
+        string refreshToken = tokenModel.RefreshToken;
 
         var principal = _tokenService.GetClaimsPrincipalFromExpiredToken(accessToken, _configuration);
 
-        if (principal == null)
+        string? userName = principal?.Identity?.Name;
+        if (string.IsNullOrEmpty(userName))
         {
             return BadRequest("Invalid access token/refresh token");
         }
-        string userName = principal.Identity.Name;
         var user = await _userManager.FindByNameAsync(userName);
 
         if (user == null
@@ -334,15 +389,8 @@ public class AuthController : ControllerBase
         var header = Request.Headers.Authorization.ToString();
         if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return Unauthorized();
 
-        ClaimsPrincipal caller;
-        try
-        {
-            caller = _tokenService.GetClaimsPrincipalFromExpiredToken(header["Bearer ".Length..].Trim(), _configuration);
-        }
-        catch (Exception)
-        {
-            return Unauthorized();
-        }
+        var caller = _tokenService.GetClaimsPrincipalFromExpiredToken(header["Bearer ".Length..].Trim(), _configuration);
+        if (caller is null) return Unauthorized();
 
         // Só o próprio usuário (claim "id") ou um Admin pode encerrar a sessão
         var callerId = caller.FindFirst("id")?.Value;

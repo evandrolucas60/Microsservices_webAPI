@@ -11,6 +11,7 @@ using Intranet.Services.ConteudoAPI.Repository.IRepository;
 using Intranet.Services.ConteudoAPI.Services;
 using Intranet.Services.ConteudoAPI.Utility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -107,6 +108,15 @@ public partial class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+
+        // Atrás do Intranet.Gateway (/conteudo/...): X-Forwarded-Host/Proto/Prefix definem o endereço público
+        // usado nas URLs absolutas das imagens de artigos. Só aceitos de proxies conhecidos (padrão: loopback);
+        // com o gateway em outra máquina, configure PublicBaseUrl (ex.: https://gateway:7020/conteudo).
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedPrefix,
+        });
 
         app.UseSharedRequestLogging();
         app.UseHttpsRedirection();

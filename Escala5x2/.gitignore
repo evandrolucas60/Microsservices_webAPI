@@ -1,0 +1,20 @@
+# Escala 5x2 (pasta dentro do repositório da intranet)
+
+# Resultados de build
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.rsuser
+
+# Logs do Serilog (logs/{serviço}-AAAAMMDD.log)
+**/logs/
+
+# Resultados de testes
+TestResults/

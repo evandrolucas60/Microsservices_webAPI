@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Escala5x2.BuildingBlocks.Shared</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Testes do usuário corrente (CurrentUser, interno) com várias lojas -->
+    <InternalsVisibleTo Include="Store.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <!--
+      Ecossistema da intranet (fora desta pasta; fazem parte da pasta de solução "Intranet" do Escala5x2.sln):
+      contratos do MassTransit (ObterMembroPorUsuario, ObterRestricoesUsuario...) e o bloqueio de usuários
+      (UserAccessMiddleware/RestricoesUsuarioService) e papéis de superAdmin (AdminPolicies).
+    -->
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Shared\BuildingBlocks.Shared.csproj" />
+  </ItemGroup>
+</Project>

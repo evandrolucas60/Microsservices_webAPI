@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    Versões centrais SOMENTE dos projetos da pasta Escala5x2 (os projetos da intranet ficam fora
+    desta pasta e continuam com as versões nos próprios .csproj).
+    Alinhadas com a intranet: MassTransit 8.5.11, Npgsql/EF Core 10, Serilog 10, ASP.NET Core 10.0.12.
+  -->
+  <ItemGroup>
+    <!-- ASP.NET Core / EF Core 10 -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- Migrations (dotnet ef); mesma versão do EF Core resolvida pelo Npgsql -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
+    <!-- Logs -->
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <!-- Mensageria: manter na linha 8.x (Apache 2.0), igual à intranet. A linha 9.x tem licença comercial. -->
+    <PackageVersion Include="MassTransit" Version="8.5.11" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.11" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.11" />
+    <!-- Otimização -->
+    <PackageVersion Include="Google.OrTools" Version="9.15.6755" />
+    <!-- Testes -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

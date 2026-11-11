@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Store.Api</RootNamespace>
+    <UserSecretsId>escala-store-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <!-- Turnos automáticos: mesma conta do motor (PlanningContext.ForOperation) -->
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Compliance\Escala5x2.BuildingBlocks.Compliance.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Shared\Escala5x2.BuildingBlocks.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

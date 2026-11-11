@@ -1,0 +1,209 @@
+# Backend Arco-Net no Docker Swarm (intranet + Escala 5x2), 2 réplicas por serviço. Ambiente de teste: só HTTP.
+# Imagens geradas pelo GitHub Actions (.github/workflows/docker-images.yml) no GHCR.
+# Deploy: ./deploy.sh (carrega o .env e roda "docker stack deploy"). Passo a passo em deploy/README.md.
+#
+# - Só o gateway publica porta (GATEWAY_PORT, padrão 5120).
+# - Os serviços conversam pela rede overlay "backend" em HTTP 8080; o nome do serviço resolve para o VIP
+#   do Swarm, que distribui entre as réplicas.
+# - Postgres (10.11.10.4:8082) e RabbitMQ (10.11.10.4:9000) continuam fora do Swarm: os appsettings já apontam para lá.
+
+x-deploy: &deploy
+  replicas: 2
+  # Uma réplica por vez, a nova sobe antes de a antiga sair. O intervalo evita que as duas réplicas
+  # rodem Database.Migrate() ao mesmo tempo quando a versão nova traz migration.
+  update_config:
+    parallelism: 1
+    delay: 30s
+    order: start-first
+    failure_action: rollback
+  rollback_config:
+    parallelism: 1
+    order: start-first
+  restart_policy:
+    condition: any
+    delay: 5s
+
+x-env: &env
+  TZ: America/Recife
+  ASPNETCORE_ENVIRONMENT: Production
+  RabbitMq__Host: ${RABBITMQ_HOST:-10.11.10.4}
+  RabbitMq__Port: ${RABBITMQ_PORT:-9000}
+
+# Serviços da Escala 5x2: todas as APIs consultam o Store.Api (/internal/stores) na autenticação
+x-env-escala: &env-escala
+  <<: *env
+  Services__Employee: http://escala5x2-employee:8080
+  Services__Store: http://escala5x2-store:8080
+  Services__Compliance: http://escala5x2-compliance:8080
+  Services__Scheduling: http://escala5x2-scheduling:8080
+
+services:
+  # ---------------------------------------------------------------- Gateway (YARP)
+  gateway:
+    image: ${REGISTRY:?defina REGISTRY no .env}/arconet-gateway:${TAG:-latest}
+    ports:
+      - { target: 8080, published: "${GATEWAY_PORT:-5120}", protocol: tcp, mode: ingress }
+    environment:
+      <<: *env
+      # Origem do front (outro servidor), somada às do appsettings (localhost:5173 e 10.11.10.5:31)
+      Cors__AllowedOrigins__2: ${FRONTEND_ORIGIN:?defina FRONTEND_ORIGIN no .env}
+      # Atrás da malha de ingress do Swarm o gateway vê o IP do ingress, não o do colaborador: o limite
+      # do login vira um balde único (por réplica) para todos. 30/min seria pouco para a rede inteira.
+      RateLimit__Login__PermitLimit: ${LOGIN_RATE_LIMIT:-300}
+    configs:
+      # Endereços dos clusters (https://localhost:70xx → http://<serviço>:8080)
+      - source: gateway_appsettings
+        target: /app/appsettings.Production.json
+    networks: [backend]
+    deploy: *deploy
+
+  # ---------------------------------------------------------------- Intranet
+  auth:
+    image: ${REGISTRY}/arconet-auth:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  escala:
+    image: ${REGISTRY}/arconet-escala:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  identidade:
+    image: ${REGISTRY}/arconet-identidade:${TAG:-latest}
+    environment:
+      <<: *env
+      # Os HttpClients "Work"/"Education" chamam a própria API
+      ServicesUrls__BaseAddress: http://identidade:8080
+      # Fotos de perfil/capa: o compartilhamento \\10.11.10.5\inetpub\... montado via CIFS (volume abaixo),
+      # o mesmo para as duas réplicas. As URLs continuam servidas pelo IIS (PathSettings:RootPathURl).
+      PathSettings__RootPath: /mnt/intranet-files
+    volumes:
+      - intranet-files:/mnt/intranet-files
+    networks: [backend]
+    deploy: *deploy
+
+  documento:
+    image: ${REGISTRY}/arconet-documento:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  conteudo:
+    image: ${REGISTRY}/arconet-conteudo:${TAG:-latest}
+    environment:
+      <<: *env
+      # URLs absolutas das imagens de artigos (o X-Forwarded-Host do gateway só é aceito de loopback)
+      PublicBaseUrl: ${PUBLIC_GATEWAY_URL:?defina PUBLIC_GATEWAY_URL no .env}/conteudo
+    networks: [backend]
+    deploy: *deploy
+
+  comunicacao:
+    image: ${REGISTRY}/arconet-comunicacao:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy:
+      <<: *deploy
+      # 1 réplica: o chat guarda os WebSockets em memória (ChatConnectionManager) e não tem backplane.
+      # Com 2, a mensagem só chega a quem estiver conectado na mesma réplica que recebeu o POST, e a
+      # presença/online fica pela metade. Subir para 2 depois de adicionar o fan-out entre réplicas.
+      replicas: 1
+
+  comunidades:
+    image: ${REGISTRY}/arconet-comunidades:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  notificacao:
+    image: ${REGISTRY}/arconet-notificacao:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy:
+      <<: *deploy
+      # 1 réplica: o NotificationDispatchWorker lê as notificações pendentes sem bloquear as linhas;
+      # com 2 réplicas o mesmo e-mail seria enviado duas vezes.
+      replicas: 1
+
+  auditoria:
+    image: ${REGISTRY}/arconet-auditoria:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  gc:
+    image: ${REGISTRY}/arconet-gc:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+  # ---------------------------------------------------------------- Escala 5x2
+  escala5x2-employee:
+    image: ${REGISTRY}/arconet-escala5x2-employee:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-store:
+    image: ${REGISTRY}/arconet-escala5x2-store:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-compliance:
+    image: ${REGISTRY}/arconet-escala5x2-compliance:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-scheduling:
+    image: ${REGISTRY}/arconet-escala5x2-scheduling:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-notification:
+    image: ${REGISTRY}/arconet-escala5x2-notification:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-audit:
+    image: ${REGISTRY}/arconet-escala5x2-audit:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  escala5x2-dimensionamento:
+    image: ${REGISTRY}/arconet-escala5x2-dimensionamento:${TAG:-latest}
+    environment: *env-escala
+    networks: [backend]
+    deploy: *deploy
+
+  # Consumidor de fila (GenerateScheduleCommand/SuggestCorrectionsCommand): as 2 réplicas competem na
+  # mesma fila, cada comando é processado uma vez. Cada geração usa até Solver:Workers (8) threads.
+  escala5x2-optimization-worker:
+    image: ${REGISTRY}/arconet-escala5x2-optimization-worker:${TAG:-latest}
+    environment: *env
+    networks: [backend]
+    deploy: *deploy
+
+networks:
+  backend:
+    driver: overlay
+    attachable: true
+
+configs:
+  gateway_appsettings:
+    file: ./gateway.appsettings.json
+
+volumes:
+  # Criado em cada nó que rodar a IdentidadeAPI (o nó precisa do pacote cifs-utils).
+  # uid/gid 1654 = usuário "app" das imagens .NET, para poder gravar.
+  intranet-files:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "//10.11.10.5/inetpub/wwwroot/intranetManagementFiles/intranet"
+      o: "username=${SMB_USER:?defina SMB_USER no .env},password=${SMB_PASSWORD:?defina SMB_PASSWORD no .env},domain=${SMB_DOMAIN:-WORKGROUP},uid=1654,gid=1654,file_mode=0664,dir_mode=0775,vers=3.0"

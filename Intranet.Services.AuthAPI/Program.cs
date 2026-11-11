@@ -8,6 +8,7 @@ using Intranet.Services.AuthAPI.Models;
 using Intranet.Services.AuthAPI.Service;
 using Intranet.Services.AuthAPI.Service.IService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -19,6 +20,9 @@ public partial class Program
     public const string AdminRole = "Admin";
     public const string SuperAdminRole = "superAdmin";
 
+    /// <summary>Papéis usados pela Escala 5x2 (o gateway mapeia superAdmin → Admin; os demais → Colaborador).</summary>
+    public static readonly string[] Escala5x2Roles = { "Gestor", "RH", "Juridico" };
+
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -27,8 +31,13 @@ public partial class Program
         builder.AddSharedSerilog();
 
         // Mensageria (MassTransit + RabbitMQ): publica os eventos de login/acesso e de restrições;
-        // responde às consultas de bloqueio/restrições dos demais serviços
-        builder.AddMessaging(x => x.AddConsumer<ObterRestricoesUsuarioConsumer>());
+        // responde às consultas de bloqueio/restrições dos demais serviços e cria os papéis pedidos pela
+        // Escala 5x2 (roles por loja "Escala5x2-Loja-{código}", GarantirRoles)
+        builder.AddMessaging(x =>
+        {
+            x.AddConsumer<ObterRestricoesUsuarioConsumer>();
+            x.AddConsumer<GarantirRolesConsumer>();
+        });
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -93,6 +102,13 @@ public partial class Program
             app.UseSwaggerUI();
         }
 
+        // Atrás do Intranet.Gateway (/auth/...): o IP do colaborador chega em X-Forwarded-For (registro de
+        // acessos da auditoria). Só aceito de proxies conhecidos (padrão: loopback, gateway na mesma máquina).
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        });
+
         app.UseSharedRequestLogging();
         app.UseHttpsRedirection();
         app.UseCors("DefaultPolicy");
@@ -134,6 +150,17 @@ public partial class Program
             if (!await roleManager.RoleExistsAsync(SuperAdminRole))
             {
                 await roleManager.CreateAsync(new IdentityRole(SuperAdminRole));
+            }
+
+            // Papéis da Escala 5x2 (Gestor, RH, Juridico): só são criados; a atribuição é feita
+            // pelo Painel de gestão. Comparação sem diferenciar maiúsculas (nome normalizado).
+            foreach (var role in Escala5x2Roles)
+            {
+                if (!await roleManager.RoleExistsAsync(role))
+                {
+                    await roleManager.CreateAsync(new IdentityRole(role));
+                    logger.LogInformation("Papel {Role} criado.", role);
+                }
             }
 
             var emails = app.Configuration.GetSection("Bootstrap:AdminEmails").Get<string[]>() ?? Array.Empty<string>();

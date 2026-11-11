@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Audit.Api</RootNamespace>
+    <UserSecretsId>escala-audit-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Shared\Escala5x2.BuildingBlocks.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

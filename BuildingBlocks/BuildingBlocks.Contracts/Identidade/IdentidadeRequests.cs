@@ -15,6 +15,8 @@ public record MembroPorUsuarioResposta
     public Guid MemberId { get; init; }
     public string? Nome { get; init; }
     public string? Departamento { get; init; }
+    /// <summary>Loja do perfil (Work.Location, ex.: "04 - PRAZERES"); null quando não informada.</summary>
+    public string? Loja { get; init; }
 }
 
 /// <summary>Nome e foto dos membros informados (ids inexistentes ficam de fora da resposta).</summary>

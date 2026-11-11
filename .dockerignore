@@ -1,0 +1,16 @@
+# Contexto de build das imagens (deploy/Dockerfile): a raiz deste repositório. Só o código-fonte entra.
+**/.git
+**/.vs
+**/.vscode
+**/.idea
+**/bin
+**/obj
+**/logs
+**/TestResults
+**/*.user
+**/*.suo
+**/*.env
+**/appsettings.Development.json
+.github/
+deploy/
+Escala5x2/Tests/

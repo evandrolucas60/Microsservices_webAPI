@@ -1,0 +1,23 @@
+{
+  "ReverseProxy": {
+    "Clusters": {
+      "escala5x2-employee": { "Destinations": { "d1": { "Address": "http://escala5x2-employee:8080" } } },
+      "escala5x2-store": { "Destinations": { "d1": { "Address": "http://escala5x2-store:8080" } } },
+      "escala5x2-compliance": { "Destinations": { "d1": { "Address": "http://escala5x2-compliance:8080" } } },
+      "escala5x2-scheduling": { "Destinations": { "d1": { "Address": "http://escala5x2-scheduling:8080" } } },
+      "escala5x2-notification": { "Destinations": { "d1": { "Address": "http://escala5x2-notification:8080" } } },
+      "escala5x2-audit": { "Destinations": { "d1": { "Address": "http://escala5x2-audit:8080" } } },
+      "escala5x2-dimensionamento": { "Destinations": { "d1": { "Address": "http://escala5x2-dimensionamento:8080" } } },
+      "intranet-auth": { "Destinations": { "d1": { "Address": "http://auth:8080" } } },
+      "intranet-escala": { "Destinations": { "d1": { "Address": "http://escala:8080" } } },
+      "intranet-identidade": { "Destinations": { "d1": { "Address": "http://identidade:8080" } } },
+      "intranet-documento": { "Destinations": { "d1": { "Address": "http://documento:8080" } } },
+      "intranet-conteudo": { "Destinations": { "d1": { "Address": "http://conteudo:8080" } } },
+      "intranet-comunicacao": { "Destinations": { "d1": { "Address": "http://comunicacao:8080" } } },
+      "intranet-comunidades": { "Destinations": { "d1": { "Address": "http://comunidades:8080" } } },
+      "intranet-notificacao": { "Destinations": { "d1": { "Address": "http://notificacao:8080" } } },
+      "intranet-auditoria": { "Destinations": { "d1": { "Address": "http://auditoria:8080" } } },
+      "intranet-gc": { "Destinations": { "d1": { "Address": "http://gc:8080" } } }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Dimensionamento.Api</RootNamespace>
+    <UserSecretsId>escala-dimensionamento-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <!-- Turnos automáticos: mesma conta do motor (PlanningContext.ForOperation) -->
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Compliance\Escala5x2.BuildingBlocks.Compliance.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Shared\Escala5x2.BuildingBlocks.Shared.csproj" />
+    <!-- Cobertura temporal (programação inteira, CP-SAT). No Windows exige o Microsoft Visual C++ Redistributable (x64). -->
+    <PackageReference Include="Google.OrTools" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Demanda de referência (relatório Consinco da loja 28-ASABRANCA, 01–27/10/2026): POST /api/dimensionamento/perfis/exemplo-asabranca -->
+    <EmbeddedResource Include="Seed\asabranca-dctos-por-checkout-hora.csv" LogicalName="Dimensionamento.Api.Seed.asabranca.csv" />
+  </ItemGroup>
+</Project>

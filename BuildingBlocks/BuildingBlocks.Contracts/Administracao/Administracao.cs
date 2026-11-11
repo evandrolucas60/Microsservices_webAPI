@@ -59,6 +59,31 @@ public record RestricoesUsuarioResposta
 }
 
 /// <summary>
+/// Comando ao AuthAPI: garante que os papéis (roles) existam, criando os que faltam. Idempotente: papel já existente
+/// (sem diferenciar maiúsculas) não é alterado; nunca apaga papel nem atribui papel a usuário (a atribuição é feita
+/// pelo superAdmin no painel de gestão). Usado pela Escala 5x2 para as roles por loja ("Escala5x2-Loja-01"...): o
+/// Store.Api publica ao criar/sincronizar lojas e envia como requisição/resposta no "Garantir roles das lojas".
+/// Nomes fora do padrão do painel (letras, números, ponto, hífen e sublinhado; até 50 caracteres) são recusados.
+/// </summary>
+public record GarantirRoles
+{
+    public string[] Nomes { get; init; } = Array.Empty<string>();
+
+    /// <summary>Quem pediu (log do AuthAPI), ex.: "Escala5x2 Store.Api: sincronização de lojas".</summary>
+    public string? Origem { get; init; }
+}
+
+/// <summary>Resposta de <see cref="GarantirRoles"/> (só quando enviado como requisição).</summary>
+public record RolesGarantidas
+{
+    public string[] Criadas { get; init; } = Array.Empty<string>();
+    public string[] Existentes { get; init; } = Array.Empty<string>();
+
+    /// <summary>Nomes recusados (fora do padrão) ou que não puderam ser criados, com o motivo: "nome: motivo".</summary>
+    public string[] Recusadas { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>
 /// Evento: erro inesperado (HTTP 5xx) em algum serviço, com o usuário que o recebeu.
 /// Publicado pelo ExceptionHandlingMiddleware compartilhado; armazenado pelo AuditoriaAPI.
 /// </summary>

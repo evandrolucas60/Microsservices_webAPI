@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <RootNamespace>Optimization.Worker</RootNamespace>
+    <UserSecretsId>escala-optimization-worker</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Compliance\Escala5x2.BuildingBlocks.Compliance.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Shared\Escala5x2.BuildingBlocks.Shared.csproj" />
+  </ItemGroup>
+</Project>

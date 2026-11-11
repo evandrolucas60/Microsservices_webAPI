@@ -24,12 +24,20 @@ public class ObterMembroPorUsuarioConsumer : IConsumer<ObterMembroPorUsuario>
                      where m.UserId == userId
                      join w in _db.Works.AsNoTracking() on m.MemberId equals w.MemberId into works
                      from w in works.DefaultIfEmpty()
-                     select new { m.MemberId, m.Name, Departamento = w != null ? w.Department : null })
+                     select new { m.MemberId, m.Name, Departamento = w != null ? w.Department : null, Loja = w != null ? w.Location : null })
                 .FirstOrDefaultAsync(context.CancellationToken);
 
         await context.RespondAsync(membro is null
             ? new MembroPorUsuarioResposta { Encontrado = false }
-            : new MembroPorUsuarioResposta { Encontrado = true, MemberId = membro.MemberId, Nome = membro.Name, Departamento = membro.Departamento });
+            : new MembroPorUsuarioResposta
+            {
+                Encontrado = true,
+                MemberId = membro.MemberId,
+                Nome = membro.Name,
+                Departamento = membro.Departamento,
+                // Loja do perfil (Configurações > Trabalho), usada pela Escala 5x2 para o escopo do usuário
+                Loja = string.IsNullOrWhiteSpace(membro.Loja) ? null : membro.Loja.Trim(),
+            });
     }
 }
 

@@ -187,13 +187,14 @@ public class UserProfileController : ControllerBase
         if (!await _ownership.OwnsProfileAsync(User, profileId)) return Forbid();
 
         var imageError = ValidateImage(dto.ProfilePicture) ?? ValidateImage(dto.CoverPhoto);
-        if (imageError is not null) return BadRequest(imageError);
+        // Respostas em JSON (ResponseDto) para o front exibir a mensagem ao usuário
+        if (imageError is not null) return BadRequest(new ResponseDto { IsSuccess = false, Message = imageError });
 
         var profile = await _uof.ProfileRepository
             .GetAsync(p => p.ProfileId == profileId);
 
         if (profile is null)
-            return BadRequest("Dados inválidos");
+            return BadRequest(new ResponseDto { IsSuccess = false, Message = "Perfil não encontrado." });
 
         try
         {
@@ -267,11 +268,8 @@ public class UserProfileController : ControllerBase
         {
             _logger.LogError(ex, "Erro: {Message}", ex.Message);
 
-            return StatusCode(500, new
-            {
-                mensagem = "Erro ao atualizar perfil",
-                erro = ex.Message
-            });
+            // Detalhes da exceção ficam só no log
+            return StatusCode(500, new ResponseDto { IsSuccess = false, Message = "Não foi possível atualizar o perfil." });
         }
 
         return Ok(profile);

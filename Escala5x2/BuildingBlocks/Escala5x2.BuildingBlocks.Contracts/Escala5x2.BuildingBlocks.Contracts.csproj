@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Escala5x2.BuildingBlocks.Contracts</RootNamespace>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Regras de conformidade aplicadas a uma fotografia (PlanningContext) e o avaliador de conformidade.
+    Mesmo código no Optimization.Worker (motor e conferência do resultado) e no Scheduling.Api
+    (avaliação a cada geração/edição). Sem dependência do OR-Tools.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Escala5x2.BuildingBlocks.Compliance</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+</Project>

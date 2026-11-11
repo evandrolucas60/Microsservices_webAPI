@@ -66,7 +66,10 @@ public partial class Program
         // AutoMapper 13+ já inclui a integração com DI (sem AutoMapper.Extensions.Microsoft.DependencyInjection)
         builder.Services.AddAutoMapper(cfg => { }, typeof(MappingConfig));
 
-        builder.Services.AddControllers();
+        // Erros de validação automática (400) com mensagens em pt-BR
+        builder.Services.AddControllers()
+            .ConfigureApiBehaviorOptions(options =>
+                options.InvalidModelStateResponseFactory = ValidationMessages.InvalidModelStateResponse);
         builder.Services.AddEndpointsApiExplorer();
 
         builder.Services.AddSwaggerGen(options =>

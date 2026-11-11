@@ -8,7 +8,8 @@ namespace Intranet.Services.AuthAPI.Service.IService
     {
         JwtSecurityToken GenerateAccessToken(IEnumerable<Claim> claims, IConfiguration _config);
         string GenerateRefreshToken();
-        ClaimsPrincipal GetClaimsPrincipalFromExpiredToken(string token, IConfiguration _config);
+        /// <summary>null quando o token é vazio, malformado ou tem assinatura inválida.</summary>
+        ClaimsPrincipal? GetClaimsPrincipalFromExpiredToken(string token, IConfiguration _config);
 
     }
 }

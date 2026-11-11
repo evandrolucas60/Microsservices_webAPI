@@ -6,7 +6,8 @@ services:
     image: rabbitmq:4.1-management
     container_name: intranet-rabbitmq
     ports:
-      - "5672:5672"
+      # AMQP exposto na porta 9000 (a mesma configurada em RabbitMq:Port de todos os serviços)
+      - "9000:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: intranet

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Scheduling.Api</RootNamespace>
+    <UserSecretsId>escala-scheduling-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MassTransit.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Contracts\Escala5x2.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Compliance\Escala5x2.BuildingBlocks.Compliance.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Escala5x2.BuildingBlocks.Shared\Escala5x2.BuildingBlocks.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
