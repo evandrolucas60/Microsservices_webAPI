@@ -1,4 +1,5 @@
 using AutoMapper;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
@@ -22,6 +23,8 @@ public class UserController : ControllerBase
     private readonly IWorkService _workService;
     private readonly IEducationService _educationService;
     private readonly IOwnershipChecker _ownership;
+    private readonly IUsuariosBloqueadosService _bloqueados;
+    private readonly IConfiguration _configuration;
     private readonly IMapper _mapper;
     private ResponseDto _response;
     private readonly ILogger<UserController> _logger;
@@ -32,6 +35,8 @@ public class UserController : ControllerBase
         IWorkService workService,
         IEducationService educationService,
         IOwnershipChecker ownership,
+        IUsuariosBloqueadosService bloqueados,
+        IConfiguration configuration,
         IMapper mapper,
         ILogger<UserController> logger)
     {
@@ -40,6 +45,8 @@ public class UserController : ControllerBase
         _workService = workService;
         _educationService = educationService;
         _ownership = ownership;
+        _bloqueados = bloqueados;
+        _configuration = configuration;
         _mapper = mapper;
         _response = new ResponseDto();
         _logger = logger;
@@ -188,16 +195,26 @@ public class UserController : ControllerBase
     /// <summary>
     /// Perfil público de um colaborador (sem endereço). Aberto também a visitantes, que não
     /// recebem dados pessoais (telefone, nascimento, gênero, matrícula e id de usuário).
+    /// Colaborador bloqueado pelo superAdmin responde 404 (exceto para ele mesmo e para o superAdmin).
     /// </summary>
     [AllowAnonymous]
     [HttpGet("GetMemberInfo")]
-    public async Task<ActionResult> GetProfilebyMemberId(Guid memberId)
+    public async Task<ActionResult> GetProfilebyMemberId(Guid memberId, CancellationToken ct)
     {
         try
         {
             var member = await _uof.MemberRepository.GetAsync(m => m.MemberId == memberId, includeProperties: null);
 
             if (member == null) return NotFound("Nenhum membro encontrado.");
+
+            // Bloqueado pelo superAdmin: some para os demais (mesma resposta de membro inexistente);
+            // o próprio usuário e o superAdmin continuam vendo
+            if (!IsAuthenticatedAs(member.UserId ?? string.Empty)
+                && !User.HasAnyRole(AdminPolicies.Roles(_configuration))
+                && await _bloqueados.EstaBloqueadoAsync(member.UserId, ct))
+            {
+                return NotFound("Nenhum membro encontrado.");
+            }
 
             var profile = await _uof.ProfileRepository.GetAsync(p => p.MemberId == member.MemberId);
 

@@ -59,6 +59,26 @@ public record RestricoesUsuarioResposta
 }
 
 /// <summary>
+/// Consulta (requisição/resposta) ao AuthAPI: usuários com bloqueio vigente. Usada para esconder
+/// os bloqueados das listagens de colaboradores (ex.: ramais) e do perfil público.
+/// </summary>
+public record ObterUsuariosBloqueados;
+
+public record UsuariosBloqueadosResposta
+{
+    public UsuarioBloqueado[] Usuarios { get; init; } = Array.Empty<UsuarioBloqueado>();
+}
+
+public record UsuarioBloqueado
+{
+    /// <summary>Id do usuário (AspNetUsers.Id = Member.UserId no IdentidadeAPI).</summary>
+    public string UserId { get; init; } = string.Empty;
+
+    /// <summary>Fim do bloqueio em UTC; null = indeterminado.</summary>
+    public DateTime? BloqueadoAte { get; init; }
+}
+
+/// <summary>
 /// Comando ao AuthAPI: garante que os papéis (roles) existam, criando os que faltam. Idempotente: papel já existente
 /// (sem diferenciar maiúsculas) não é alterado; nunca apaga papel nem atribui papel a usuário (a atribuição é feita
 /// pelo superAdmin no painel de gestão). Usado pela Escala 5x2 para as roles por loja ("Escala5x2-Loja-01"...): o

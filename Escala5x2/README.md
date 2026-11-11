@@ -158,11 +158,11 @@ nem para o log**:
 | `LG:Tentativas` / `LG:EsperaInicialMs` | 3 / 1000 | retry com backoff (rede, timeout, HTTP 408/429/5xx sem SOAP Fault) |
 | `LG:MaxPaginas` | 1000 | limite de segurança |
 | `LG:FusoHorario` | America/Recife | "hoje" (DataVigente, vigência do centro de custo, horários diários) |
-| `LG:SincronizacaoDiaria` | vazio | "HH:mm" liga a sincronização diária dos colaboradores (Employee.Api) |
+| `LG:SincronizacaoDiaria` | 05:00 | "HH:mm" (vazio = desligada) liga a sincronização diária dos colaboradores (Employee.Api) |
 | `LG:CentrosDeCusto` | {} | colaboradores: centro de custo → Code da loja (ex.: `{ "900100": "CD" }`) |
 | `LG:Lojas:Padrao` | `^(VAREJO\|ATACAREJO\|ATACADO)\b.*\bLOJA\s*(?<numero>\d{1,3})` | regex (sem diferenciar maiúsculas/acentos) que diz quais centros de custo são loja |
 | `LG:Lojas:Mapeamento` | {} | centro de custo → Code da loja (precedência sobre o padrão; resolve conflitos; valor vazio = não é loja) |
-| `LG:Lojas:SincronizacaoDiaria` | vazio | "HH:mm" liga a sincronização diária das lojas e, em seguida, do catálogo de setores (Store.Api); agende antes da de colaboradores |
+| `LG:Lojas:SincronizacaoDiaria` | 03:00 | "HH:mm" (vazio = desligada) liga a sincronização diária das lojas e, em seguida, do catálogo de setores (Store.Api); agende antes da de colaboradores |
 | `LG:Lojas:SincronizarAntesDosColaboradores` | false | Employee.Api: a sincronização de colaboradores chama antes `POST /internal/stores/sincronizar-lg` (X-Internal-Key) |
 | `Seed:LojasRede` | ver abaixo | lojas da lista fixa da intranet na subida do Store.Api |
 
@@ -185,7 +185,7 @@ dotnet user-secrets set "LG:Operacoes:OrgaosResponsaveis:Url" "https://..." --pr
 LG__Url=https://...   LG__Usuario=...   LG__Senha=...   LG__GuidTenant=...
 LG__Operacoes__Colaboradores__SoapAction=...   LG__Operacoes__CentrosDeCusto__SoapAction=...
 LG__Operacoes__OrgaosResponsaveis__SoapAction=...   LG__Operacoes__OrgaosResponsaveis__Url=https://...
-LG__Lojas__SincronizacaoDiaria=05:00   LG__SincronizacaoDiaria=05:30
+LG__Lojas__SincronizacaoDiaria=03:00   LG__SincronizacaoDiaria=05:00
 LG__Lojas__Mapeamento__305000=35   LG__CentrosDeCusto__900100=CD
 ```
 

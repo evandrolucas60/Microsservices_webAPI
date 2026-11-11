@@ -118,7 +118,10 @@ services:
 
   notificacao:
     image: ${REGISTRY}/arconet-notificacao:${TAG:-latest}
-    environment: *env
+    environment:
+      <<: *env
+      # Links "ler no portal" dos e-mails: o endereço do front
+      Newsletter__PortalUrl: ${FRONTEND_ORIGIN}
     networks: [backend]
     deploy:
       <<: *deploy
@@ -143,13 +146,20 @@ services:
     image: ${REGISTRY}/arconet-escala5x2-employee:${TAG:-latest}
     environment: *env-escala
     networks: [backend]
-    deploy: *deploy
+    deploy:
+      <<: *deploy
+      # 1 réplica: a sincronização diária com a LG (colaboradores às 05:00) roda em cada réplica, e o
+      # andamento fica em memória. Com 2, a LG seria consultada duas vezes e o status ficaria pela metade.
+      replicas: 1
 
   escala5x2-store:
     image: ${REGISTRY}/arconet-escala5x2-store:${TAG:-latest}
     environment: *env-escala
     networks: [backend]
-    deploy: *deploy
+    deploy:
+      <<: *deploy
+      # 1 réplica: mesma razão do escala5x2-employee (sincronização diária das lojas às 03:00)
+      replicas: 1
 
   escala5x2-compliance:
     image: ${REGISTRY}/arconet-escala5x2-compliance:${TAG:-latest}

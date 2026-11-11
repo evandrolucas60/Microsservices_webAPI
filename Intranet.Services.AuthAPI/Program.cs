@@ -31,11 +31,13 @@ public partial class Program
         builder.AddSharedSerilog();
 
         // Mensageria (MassTransit + RabbitMQ): publica os eventos de login/acesso e de restrições;
-        // responde às consultas de bloqueio/restrições dos demais serviços e cria os papéis pedidos pela
+        // responde às consultas de bloqueio/restrições (e à lista de bloqueados) dos demais serviços e cria os papéis pedidos pela
         // Escala 5x2 (roles por loja "Escala5x2-Loja-{código}", GarantirRoles)
         builder.AddMessaging(x =>
         {
             x.AddConsumer<ObterRestricoesUsuarioConsumer>();
+            // Lista de bloqueados (IdentidadeAPI esconde dos ramais e do perfil)
+            x.AddConsumer<ObterUsuariosBloqueadosConsumer>();
             x.AddConsumer<GarantirRolesConsumer>();
         });
 

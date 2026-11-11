@@ -24,7 +24,7 @@ builder.Services.AddTransient<InternalKeyHandler>();
 // Setores pelo OrgaoResponsavel: o Store.Api garante um setor por órgão em cada loja (POST /internal/stores/{id}/sectors/garantir-lg)
 builder.Services.AddHttpClient(SetoresLgLojaHttp.Cliente, c =>
     {
-        c.BaseAddress = new Uri(builder.Configuration["Services:Store"] ?? "https://localhost:7022");
+        c.BaseAddress = new Uri(builder.Configuration["Services:Store"] ?? "http://localhost:7022");
         c.Timeout = TimeSpan.FromSeconds(30);
     })
     .AddHttpMessageHandler<InternalKeyHandler>()
@@ -33,7 +33,7 @@ builder.Services.AddScoped<ISetoresLgLoja, SetoresLgLojaHttp>();
 // Sincronização de lojas no Store.Api antes da de colaboradores (opcional: LG:Lojas:SincronizarAntesDosColaboradores)
 builder.Services.AddHttpClient(SincronizacaoLojasLgHttp.Cliente, c =>
     {
-        c.BaseAddress = new Uri(builder.Configuration["Services:Store"] ?? "https://localhost:7022");
+        c.BaseAddress = new Uri(builder.Configuration["Services:Store"] ?? "http://localhost:7022");
         c.Timeout = TimeSpan.FromMinutes(10); // centros de custo na LG e, em seguida, o catálogo de setores (órgãos) em todas as lojas
     })
     .AddHttpMessageHandler<InternalKeyHandler>()

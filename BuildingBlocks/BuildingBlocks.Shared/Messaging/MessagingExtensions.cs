@@ -37,6 +37,7 @@ public static class MessagingExtensions
             // Painel de gestão: bloqueio/restrições do usuário (AuthAPI responde; cada instância
             // de cada serviço tem a sua fila temporária para atualizar o cache local na hora)
             x.AddRequestClient<BuildingBlocks.Contracts.Administracao.ObterRestricoesUsuario>(timeout);
+            x.AddRequestClient<BuildingBlocks.Contracts.Administracao.ObterUsuariosBloqueados>(timeout);
             x.AddConsumer<BuildingBlocks.Shared.Security.RestricoesUsuarioAlteradasConsumer>()
                 .Endpoint(e =>
                 {
@@ -75,6 +76,8 @@ public static class MessagingExtensions
         builder.Services.AddScoped<IIdentidadeGateway, IdentidadeGateway>();
         builder.Services.AddScoped<INotificacaoPublisher, NotificacaoPublisher>();
         builder.Services.AddScoped<BuildingBlocks.Shared.Security.IRestricoesUsuarioService, BuildingBlocks.Shared.Security.RestricoesUsuarioService>();
+        // Lista de bloqueados (esconder das listagens de colaboradores e do perfil público)
+        builder.Services.AddScoped<BuildingBlocks.Shared.Security.IUsuariosBloqueadosService, BuildingBlocks.Shared.Security.UsuariosBloqueadosService>();
 
         return builder;
     }

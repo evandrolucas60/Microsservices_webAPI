@@ -179,7 +179,7 @@ public partial class Program
     }
 
     /// <summary>
-    /// Location relativo ("/api/...") ou absoluto com o endereço interno do serviço (https://localhost:70xx)
+    /// Location relativo ("/api/...") ou absoluto com o endereço interno do serviço (http://localhost:70xx)
     /// passa a apontar para o gateway com o prefixo do serviço.
     /// </summary>
     private static void AjustarLocation(ResponseTransformContext transform, string prefixo)

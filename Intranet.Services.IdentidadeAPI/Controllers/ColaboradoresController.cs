@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Models;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
@@ -20,11 +21,13 @@ public class ColaboradoresController : ControllerBase
     private const int MaxPageSize = 100;
 
     private readonly AppDbContext _db;
+    private readonly IUsuariosBloqueadosService _bloqueados;
     private readonly ILogger<ColaboradoresController> _logger;
 
-    public ColaboradoresController(AppDbContext db, ILogger<ColaboradoresController> logger)
+    public ColaboradoresController(AppDbContext db, IUsuariosBloqueadosService bloqueados, ILogger<ColaboradoresController> logger)
     {
         _db = db;
+        _bloqueados = bloqueados;
         _logger = logger;
     }
 
@@ -44,6 +47,15 @@ public class ColaboradoresController : ControllerBase
         join p in _db.Profiles.AsNoTracking() on m.MemberId equals p.MemberId into profiles
         from p in profiles.DefaultIfEmpty()
         select new Linha { Member = m, Work = w, Profile = p };
+
+    // Usuários bloqueados pelo superAdmin não aparecem nas listas (filtro no SQL, antes de paginar/contar)
+    private async Task<IQueryable<Linha>> SemBloqueadosAsync(IQueryable<Linha> query, CancellationToken ct)
+    {
+        var bloqueados = (await _bloqueados.ObterAsync(ct)).ToList();
+        return bloqueados.Count == 0
+            ? query
+            : query.Where(l => l.Member.UserId == null || !bloqueados.Contains(l.Member.UserId));
+    }
 
     private static ColaboradorDto ToDto(Linha l) => new()
     {
@@ -105,17 +117,17 @@ public class ColaboradoresController : ControllerBase
         return Ok(new ResponseDto { Result = result });
     }
 
-    /// <summary>Aniversariantes do mês (padrão: mês atual), ordenados pelo dia.</summary>
+    /// <summary>Aniversariantes do mês (padrão: mês atual), ordenados pelo dia. Sem os bloqueados pelo superAdmin.</summary>
     [AllowAnonymous]
     [HttpGet("aniversariantes")]
-    public async Task<ActionResult> Aniversariantes([FromQuery] int? mes)
+    public async Task<ActionResult> Aniversariantes([FromQuery] int? mes, CancellationToken ct = default)
     {
         var mesConsulta = mes ?? DateTime.Today.Month;
         if (!MesValido(mesConsulta)) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Mês inválido (1 a 12)." });
 
-        var linhas = await Colaboradores()
+        var linhas = await (await SemBloqueadosAsync(Colaboradores(), ct))
             .Where(l => l.Member.BirthDate != null && l.Member.BirthDate.Value.Month == mesConsulta)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var result = linhas
             .Select(l =>
@@ -134,22 +146,22 @@ public class ColaboradoresController : ControllerBase
 
     /// <summary>
     /// Colaboradores que completam anos de empresa no mês (padrão: mês atual).
-    /// Considera apenas quem completa pelo menos 1 ano no ano corrente.
+    /// Considera apenas quem completa pelo menos 1 ano no ano corrente. Sem os bloqueados pelo superAdmin.
     /// </summary>
     [AllowAnonymous]
     [HttpGet("tempo-de-empresa")]
-    public async Task<ActionResult> TempoDeEmpresa([FromQuery] int? mes)
+    public async Task<ActionResult> TempoDeEmpresa([FromQuery] int? mes, CancellationToken ct = default)
     {
         var hoje = DateTime.UtcNow;
         var mesConsulta = mes ?? hoje.Month;
         if (!MesValido(mesConsulta)) return BadRequest(new ResponseDto { IsSuccess = false, Message = "Mês inválido (1 a 12)." });
 
-        var linhas = await Colaboradores()
+        var linhas = await (await SemBloqueadosAsync(Colaboradores(), ct))
             .Where(l => l.Work != null
                 && l.Work.AdmissionDate != null
                 && l.Work.AdmissionDate.Value.Month == mesConsulta
                 && l.Work.AdmissionDate.Value.Year < hoje.Year)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var result = linhas
             .Select(l =>
@@ -229,7 +241,7 @@ public class ColaboradoresController : ControllerBase
     /// <summary>
     /// Lista de ramais/contatos, paginada. Filtros: busca (nome, e-mail, ramal ou cargo) e departamento.
     /// A paginação vai no header X-Pagination (mesmo formato usado pelo frontend).
-    /// Pública: a lista de ramais pode ser consultada sem login.
+    /// Pública: a lista de ramais pode ser consultada sem login. Usuários bloqueados pelo superAdmin ficam de fora.
     /// </summary>
     [AllowAnonymous]
     [HttpGet("ramais")]
@@ -237,12 +249,13 @@ public class ColaboradoresController : ControllerBase
         [FromQuery] string? busca,
         [FromQuery] string? departamento,
         [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 48)
+        [FromQuery] int pageSize = 48,
+        CancellationToken ct = default)
     {
         pageNumber = Math.Max(pageNumber, 1);
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
-        var query = Colaboradores();
+        var query = await SemBloqueadosAsync(Colaboradores(), ct);
 
         if (!string.IsNullOrWhiteSpace(busca))
         {
@@ -260,14 +273,14 @@ public class ColaboradoresController : ControllerBase
             query = query.Where(l => l.Work != null && l.Work.Department == departamento);
         }
 
-        var total = await query.CountAsync();
+        var total = await query.CountAsync(ct);
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
 
         var linhas = await query
             .OrderBy(l => l.Member.Name)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var pagination = new
         {

@@ -28,7 +28,7 @@ foreach (var (name, key) in new[]
             c.Timeout = timeout;
         })
         .AddHttpMessageHandler<InternalKeyHandler>()
-        // Em Development os serviços usam https://localhost:702x com o certificado de desenvolvimento
+        // Os serviços rodam em http://localhost:702x; se algum for apontado para https://localhost, aceita o certificado de desenvolvimento
         .AcceptLocalDevCertificate(builder.Environment);
 }
 builder.Services.AddScoped<EscalaClients>();

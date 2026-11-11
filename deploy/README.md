@@ -66,7 +66,8 @@ O `cifs-utils` instalado acima é necessário para montar o compartilhamento das
 ### 2.2 Iniciar o Swarm
 
 ```bash
-docker swarm init --advertise-addr <IP_DO_SERVIDOR> --default-addr-pool 172.20.0.0/16
+# Servidor do backend: 10.11.10.4 (o mesmo do Postgres e do RabbitMQ)
+docker swarm init --advertise-addr 10.11.10.4 --default-addr-pool 172.20.0.0/16
 ```
 
 > O `--default-addr-pool` evita que as redes internas do Swarm usem `10.x.x.x`. Esse é o padrão do Docker, e ele colidiria com a rede da empresa (`10.11.10.x`). Escolha uma faixa `172.x` que não exista na rede.
@@ -112,8 +113,8 @@ nano .env
 | `REGISTRY` | `ghcr.io/evandrolucas60` | Dono do repositório no GitHub. |
 | `TAG` | `latest` | Ou `sha-1a2b3c4` para fixar uma versão. |
 | `GATEWAY_PORT` | `5120` | Porta aberta no servidor. |
-| `PUBLIC_GATEWAY_URL` | `http://10.11.10.20:5120` | Endereço do gateway visto pelo navegador. |
-| `FRONTEND_ORIGIN` | `http://10.11.10.30:8080` | Endereço do front, exatamente como aparece no navegador, sem `/` no fim. Fica liberado no CORS. |
+| `PUBLIC_GATEWAY_URL` | `http://10.11.10.4:5120` | Endereço do gateway visto pelo navegador. |
+| `FRONTEND_ORIGIN` | `http://10.11.10.5:31` | Endereço do front, exatamente como aparece no navegador, sem `/` no fim. Fica liberado no CORS e vai nos links dos e-mails. |
 | `SMB_USER` / `SMB_PASSWORD` / `SMB_DOMAIN` | | Conta com escrita em `\\10.11.10.5\inetpub\wwwroot\intranetManagementFiles\intranet`. A senha não pode ter vírgula. |
 
 ## 3. Deploy
@@ -123,7 +124,7 @@ cd ~/arconet/deploy
 bash deploy.sh
 ```
 
-Acompanhe até todos os serviços mostrarem `2/2` na coluna REPLICAS. O `comunicacao` e o `notificacao` mostram `1/1` (veja [Limitações](#limitações)).
+Acompanhe até todos os serviços mostrarem `2/2` na coluna REPLICAS. O `comunicacao`, o `notificacao`, o `escala5x2-employee` e o `escala5x2-store` mostram `1/1` (veja [Limitações](#limitações)).
 
 ```bash
 watch docker stack services arconet
@@ -148,7 +149,7 @@ curl -i -X POST http://localhost:5120/auth/api/auth/login -H 'Content-Type: appl
 No `.env` do front, antes do build:
 
 ```
-VITE_GATEWAY_URL=http://<IP_DO_SERVIDOR>:5120
+VITE_GATEWAY_URL=http://10.11.10.4:5120
 ```
 
 O endereço em que o front é aberto no navegador precisa ser igual ao `FRONTEND_ORIGIN` do `.env` do backend. Se não for, o navegador bloqueia as chamadas por CORS.
@@ -199,7 +200,7 @@ docker stack rm arconet                       # remove tudo (os bancos não são
 
 - **`comunicacao` (chat) fica com 1 réplica.** As conexões WebSocket ficam em memória, sem backplane, então com 2 réplicas parte das mensagens e da presença se perde.
 - **`notificacao` fica com 1 réplica.** O worker de envio não trava as notificações pendentes, então com 2 réplicas os e-mails sairiam duplicados.
-- **Sincronização LG (`escala5x2-employee` e `escala5x2-store`):** o status fica em memória. A tela de andamento pode consultar a outra réplica e mostrar "nada em execução". Não ative `SincronizacaoDiaria` com 2 réplicas.
+- **`escala5x2-employee` e `escala5x2-store` ficam com 1 réplica.** A sincronização diária com a LG (lojas às 03:00, colaboradores às 05:00) roda em cada réplica, e o andamento fica em memória. Com 2 réplicas a LG seria consultada duas vezes e a tela de andamento poderia mostrar "nada em execução".
 - **IP do cliente:** atrás do ingress do Swarm, o gateway vê o IP interno. Por isso o limite de login vale para todos juntos e foi subido para 300 por minuto. Os IPs da auditoria também saem internos.
 - **Logs:** ficam em `/app/logs` de cada container e somem quando ele é recriado. Use `docker service logs`.
 - **Segredos:** as senhas do Postgres e do RabbitMQ e a chave do JWT continuam nos `appsettings.json` versionados.

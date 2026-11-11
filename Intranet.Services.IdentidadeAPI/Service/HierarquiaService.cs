@@ -1,4 +1,5 @@
 using BuildingBlocks.Shared.Exceptions;
+using BuildingBlocks.Shared.Security;
 using Intranet.Services.IdentidadeAPI.Data;
 using Intranet.Services.IdentidadeAPI.Models.DTOs;
 using Intranet.Services.IdentidadeAPI.Service.IService;
@@ -18,12 +19,27 @@ namespace Intranet.Services.IdentidadeAPI.Service
         private const long LockAlteracaoGestor = 7_310_250_901;
 
         private readonly AppDbContext _db;
+        private readonly IUsuariosBloqueadosService _bloqueados;
         private readonly ILogger<HierarquiaService> _logger;
 
-        public HierarquiaService(AppDbContext db, ILogger<HierarquiaService> logger)
+        public HierarquiaService(AppDbContext db, IUsuariosBloqueadosService bloqueados, ILogger<HierarquiaService> logger)
         {
             _db = db;
+            _bloqueados = bloqueados;
             _logger = logger;
+        }
+
+        /// <summary>MemberIds dos usuários bloqueados pelo superAdmin (ficam fora do organograma, da cadeia e dos liderados).</summary>
+        private async Task<HashSet<Guid>> MembrosBloqueadosAsync(CancellationToken ct)
+        {
+            var userIds = (await _bloqueados.ObterAsync(ct)).ToList();
+            if (userIds.Count == 0) return new HashSet<Guid>();
+
+            var ids = await _db.Members.AsNoTracking()
+                .Where(m => m.UserId != null && userIds.Contains(m.UserId))
+                .Select(m => m.MemberId)
+                .ToListAsync(ct);
+            return ids.ToHashSet();
         }
 
         public int MaxProfundidade => Profundidade;
@@ -124,7 +140,13 @@ namespace Intranet.Services.IdentidadeAPI.Service
         {
             var (cadeiaIds, incompleta) = await ObterCadeiaIdsAsync(memberId, ct);
 
-            var lideradosQuery = _db.Members.AsNoTracking().Where(m => m.GestorMemberId == memberId && m.MemberId != memberId);
+            // Bloqueados pelo superAdmin: pulados na cadeia (o gestor exibido passa a ser o próximo acima) e fora dos liderados
+            var bloqueados = await MembrosBloqueadosAsync(ct);
+            cadeiaIds = cadeiaIds.Where(id => !bloqueados.Contains(id)).ToList();
+            var bloqueadosLista = bloqueados.ToList();
+
+            var lideradosQuery = _db.Members.AsNoTracking()
+                .Where(m => m.GestorMemberId == memberId && m.MemberId != memberId && !bloqueadosLista.Contains(m.MemberId));
             var totalLiderados = await lideradosQuery.CountAsync(ct);
             var lideradosIds = await lideradosQuery
                 .OrderBy(m => m.Name)
@@ -203,7 +225,25 @@ namespace Intranet.Services.IdentidadeAPI.Service
         {
             var setor = string.IsNullOrWhiteSpace(departamento) ? null : departamento.Trim();
 
+            // Bloqueados pelo superAdmin não aparecem; quem estava abaixo deles sobe para o gestor seguinte da cadeia
+            var bloqueados = await MembrosBloqueadosAsync(ct);
+            var bloqueadosLista = bloqueados.ToList();
+            var substituto = new Dictionary<Guid, Guid?>(); // gestor bloqueado -> gestor dele
+
+            // Gestor efetivo: pula os bloqueados já conhecidos (com proteção contra ciclo antigo nos dados)
+            Guid? Efetivo(Guid? id)
+            {
+                var vistos = new HashSet<Guid>();
+                while (id is Guid g && substituto.TryGetValue(g, out var acima))
+                {
+                    if (!vistos.Add(g)) return null;
+                    id = acima;
+                }
+                return id;
+            }
+
             var query = Resumos();
+            if (bloqueadosLista.Count > 0) query = query.Where(r => !bloqueadosLista.Contains(r.MemberId));
             if (setor is not null) query = query.Where(r => r.Departamento == setor);
 
             var linhas = await query
@@ -234,9 +274,20 @@ namespace Intranet.Services.IdentidadeAPI.Service
                 var novos = gestores.GroupBy(g => g.MemberId).Select(g => g.First()).ToList();
                 foreach (var gestor in novos)
                 {
-                    gestor.ForaDoSetor = setor is not null && !string.Equals(gestor.Departamento, setor, StringComparison.Ordinal);
                     presentes.Add(gestor.MemberId);
+                    if (bloqueados.Contains(gestor.MemberId))
+                    {
+                        // Fica fora da árvore; seus liderados passam ao gestor dele (buscado no próximo nível, se faltar)
+                        substituto[gestor.MemberId] = gestor.GestorMemberId;
+                        continue;
+                    }
+                    gestor.ForaDoSetor = setor is not null && !string.Equals(gestor.Departamento, setor, StringComparison.Ordinal);
                     nos.Add(gestor);
+                }
+
+                if (substituto.Count > 0)
+                {
+                    foreach (var no in nos) no.GestorMemberId = Efetivo(no.GestorMemberId);
                 }
 
                 // Gestores inexistentes (não deveria ocorrer com a FK): evita repetir a busca

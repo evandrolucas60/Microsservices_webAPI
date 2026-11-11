@@ -78,7 +78,7 @@ public static class AuthExtensions
         // Padrão: /internal/stores do Store.Api. O Store.Api substitui por consulta ao próprio banco.
         services.AddHttpClient<ILojasEscala, LojasEscalaHttpClient>(c =>
             {
-                c.BaseAddress = new Uri(configuration["Services:Store"] ?? "https://localhost:7022");
+                c.BaseAddress = new Uri(configuration["Services:Store"] ?? "http://localhost:7022");
                 // Curto: a consulta acontece na autenticação e segura a requisição do usuário
                 c.Timeout = TimeSpan.FromSeconds(5);
             })

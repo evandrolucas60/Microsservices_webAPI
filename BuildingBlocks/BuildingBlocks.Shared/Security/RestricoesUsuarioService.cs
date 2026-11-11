@@ -63,7 +63,10 @@ public class RestricoesUsuarioService : IRestricoesUsuarioService
         r.Bloqueado && r.BloqueadoAte is { } ate && ate <= DateTime.UtcNow ? r with { Bloqueado = false } : r;
 }
 
-/// <summary>Atualiza o cache local de restrições quando o superAdmin altera um usuário.</summary>
+/// <summary>
+/// Atualiza o cache local de restrições (e a lista de bloqueados, se carregada) quando o superAdmin
+/// altera um usuário. Um único consumer para o evento: cada instância tem a sua fila temporária.
+/// </summary>
 public class RestricoesUsuarioAlteradasConsumer : IConsumer<RestricoesUsuarioAlteradas>
 {
     private readonly IMemoryCache _cache;
@@ -80,6 +83,7 @@ public class RestricoesUsuarioAlteradasConsumer : IConsumer<RestricoesUsuarioAlt
             BloqueadoAte = m.BloqueadoAte,
             Servicos = m.Servicos,
         });
+        UsuariosBloqueadosService.Atualizar(_cache, m.UserId, m.Bloqueado, m.BloqueadoAte);
         return Task.CompletedTask;
     }
 }

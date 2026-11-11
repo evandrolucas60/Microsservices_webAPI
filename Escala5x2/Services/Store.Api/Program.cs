@@ -22,7 +22,7 @@ builder.Services.AddScoped<ILojasEscala, LojasEscalaDb>();
 // Intervalo padrão (intervalo_padrao_minutos) para turnos criados sem BreakMinutes
 builder.Services.AddHttpClient<ComplianceRulesClient>(c =>
     {
-        c.BaseAddress = new Uri(builder.Configuration["Services:Compliance"] ?? "https://localhost:7023");
+        c.BaseAddress = new Uri(builder.Configuration["Services:Compliance"] ?? "http://localhost:7023");
         c.Timeout = TimeSpan.FromSeconds(10);
     })
     .AddHttpMessageHandler<InternalKeyHandler>()
