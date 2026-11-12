@@ -81,15 +81,46 @@ public class EscalaController : ControllerBase
 
     // ---------------------------------------------------------------- Consulta (pública)
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Escala>>> GetAsync()
+    /// <summary>
+    /// A foto gravada na escala é a do momento em que ela foi salva: troca pela foto atual do cadastro do
+    /// colaborador (sem foto = null, e o front mostra a imagem padrão). Sem resposta do IdentidadeAPI,
+    /// mantém a gravada. Só altera a resposta; nada é salvo.
+    /// </summary>
+    private async Task AtualizarFotosAsync(IEnumerable<Escala> escalas, CancellationToken ct)
     {
-        var escalas = await _uof.EscalaRepository.GetAllAsync();
+        var lista = escalas.Where(e => e.MemberId is not null).ToList();
+        if (lista.Count == 0) return;
+
+        Dictionary<Guid, string?> fotos;
+        try
+        {
+            fotos = (await _identidade.GetColaboradoresDoSetorAsync(BearerToken, ct))
+                .GroupBy(c => c.MemberId)
+                .ToDictionary(g => g.Key, g => g.First().Foto);
+        }
+        catch (BuildingBlocks.Shared.Exceptions.ServicoIndisponivelException ex)
+        {
+            _logger.LogWarning(ex, "IdentidadeAPI indisponível ao atualizar as fotos das escalas");
+            return;
+        }
+
+        foreach (var escala in lista)
+        {
+            // Colaborador que saiu da T.I não vem na lista: fica com a foto gravada
+            if (fotos.TryGetValue(escala.MemberId!.Value, out var foto)) escala.ProfileImg = foto;
+        }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Escala>>> GetAsync(CancellationToken ct)
+    {
+        var escalas = (await _uof.EscalaRepository.GetAllAsync()).ToList();
+        await AtualizarFotosAsync(escalas, ct);
         return Ok(escalas.OrderBy(e => e.DateTime).ThenBy(e => e.Horario));
     }
 
     [HttpGet("{id:int}", Name = "obterEscala")]
-    public async Task<ActionResult<Escala>> GetAsync(int id)
+    public async Task<ActionResult<Escala>> GetAsync(int id, CancellationToken ct)
     {
         var escala = await _uof.EscalaRepository.GetAsync(c => c.Id == id);
         if (escala is null)
@@ -97,13 +128,15 @@ public class EscalaController : ControllerBase
             _logger.LogWarning("Escala não Encontrada");
             return NotFound("Escala não Encontrada");
         }
+        await AtualizarFotosAsync([escala], ct);
         return Ok(escala);
     }
 
     [HttpGet("pagination")]
-    public async Task<ActionResult<IEnumerable<Escala>>> GetEscalasAsync([FromQuery] EscalaParameters parameters)
+    public async Task<ActionResult<IEnumerable<Escala>>> GetEscalasAsync([FromQuery] EscalaParameters parameters, CancellationToken ct)
     {
         var escalas = await _uof.EscalaRepository.GetEscalasAsync(parameters);
+        await AtualizarFotosAsync(escalas, ct);
         var metadata = new
         {
             escalas.TotalCount,
