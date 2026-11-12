@@ -77,6 +77,8 @@ public static class DadosCadastroColaborador
         "27 - NOSSA SENHORA DO Ó",
         "28 - ASA BRANCA",
         "30 - CANDEIAS",
+        "31 - SIRINHAEM",
+        "32 - IPOJUCA",
     ];
 
     /// <summary>Ramal interno: só dígitos, de 2 a 6.</summary>

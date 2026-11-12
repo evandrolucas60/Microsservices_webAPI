@@ -36,7 +36,7 @@ namespace Intranet.Services.AuthAPI.Models.DTOs
         [RegularExpression(DadosCadastroColaborador.RamalRegex, ErrorMessage = "O ramal deve ter de 2 a 6 dígitos (somente números).")]
         public string? Ramal { get; set; }
 
-        [Required(ErrorMessage = "Informe o telefone.")]
+        // Opcional: nem todo colaborador tem celular corporativo (vazio passa; preenchido segue o formato)
         [RegularExpression(DadosCadastroColaborador.TelefoneRegex, ErrorMessage = "Informe o telefone no formato (81) 99999-9999 ou (81) 3333-4444.")]
         public string? Telefone { get; set; }
 

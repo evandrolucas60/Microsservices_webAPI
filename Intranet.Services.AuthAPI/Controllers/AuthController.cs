@@ -297,7 +297,7 @@ public class AuthController : ControllerBase
                 Cargo = model.Cargo!.Trim(),
                 Loja = model.Loja!.Trim(),
                 Ramal = model.Ramal!.Trim(),
-                Telefone = model.Telefone!.Trim(),
+                Telefone = model.Telefone?.Trim() ?? string.Empty,
                 Em = DateTime.UtcNow,
             }, timeout.Token);
         }
