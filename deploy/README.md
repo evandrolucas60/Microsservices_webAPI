@@ -1,4 +1,4 @@
-# Deploy do backend no Docker Swarm (Ubuntu Server, ambiente de teste)
+﻿# Deploy do backend no Docker Swarm (Ubuntu Server, ambiente de teste)
 
 O backend roda em containers com **2 réplicas** por serviço. São 19 serviços: o gateway, os 10 da intranet e os 8 da Escala 5x2. As imagens são geradas pelo GitHub Actions e publicadas no GitHub Container Registry (GHCR). O servidor só baixa as imagens e sobe o stack.
 
@@ -113,8 +113,8 @@ nano .env
 | `REGISTRY` | `ghcr.io/evandrolucas60` | Dono do repositório no GitHub. |
 | `TAG` | `latest` | Ou `sha-1a2b3c4` para fixar uma versão. |
 | `GATEWAY_PORT` | `5120` | Porta aberta no servidor. |
-| `PUBLIC_GATEWAY_URL` | `http://10.11.10.4:5120` | Endereço do gateway visto pelo navegador. |
-| `FRONTEND_ORIGIN` | `http://10.11.10.5:31` | Endereço do front, exatamente como aparece no navegador, sem `/` no fim. Fica liberado no CORS e vai nos links dos e-mails. |
+| `PUBLIC_GATEWAY_URL` | `https://intranet.arcomix.com.br/gateway` | Endereço do gateway visto pelo navegador. Com o portal em HTTPS, o IIS repassa `/gateway/...` para a porta 5120 (veja `Frontend/DEPLOY-IIS-HTTPS.md`). |
+| `FRONTEND_ORIGIN` | `https://intranet.arcomix.com.br` | Endereço do front, exatamente como aparece no navegador, sem `/` no fim. Fica liberado no CORS e no WebSocket do chat, e vai nos links dos e-mails. |
 | `SMB_USER` / `SMB_PASSWORD` / `SMB_DOMAIN` | | Conta com escrita em `\\10.11.10.5\inetpub\wwwroot\intranetManagementFiles\intranet`. A senha não pode ter vírgula. |
 
 ## 3. Deploy
@@ -146,13 +146,9 @@ curl -i -X POST http://localhost:5120/auth/api/auth/login -H 'Content-Type: appl
 
 ## 5. Front-end (no outro servidor)
 
-No `.env` do front, antes do build:
+O portal roda em HTTPS no IIS do 10.11.10.5 e chama o gateway pelo próprio endereço (`/gateway`, repassado pelo IIS para `http://10.11.10.4:5120`). O `Frontend/.env.production` já traz `VITE_GATEWAY_URL=/gateway`. Passo a passo do IIS em `Frontend/DEPLOY-IIS-HTTPS.md`.
 
-```
-VITE_GATEWAY_URL=http://10.11.10.4:5120
-```
-
-O endereço em que o front é aberto no navegador precisa ser igual ao `FRONTEND_ORIGIN` do `.env` do backend. Se não for, o navegador bloqueia as chamadas por CORS.
+O endereço em que o front é aberto no navegador precisa ser igual ao `FRONTEND_ORIGIN` do `.env` do backend. Se não for, o WebSocket do chat é recusado.
 
 ## 6. Atualizar
 

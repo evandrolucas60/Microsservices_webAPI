@@ -101,7 +101,10 @@ services:
 
   comunicacao:
     image: ${REGISTRY}/arconet-comunicacao:${TAG:-latest}
-    environment: *env
+    environment:
+      <<: *env
+      # O WebSocket do chat (/ws/chat) recusa origens fora desta lista (CORS não vale para WebSocket)
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN}
     networks: [backend]
     deploy:
       <<: *deploy
