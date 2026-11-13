@@ -79,6 +79,8 @@ services:
       # Fotos de perfil/capa: o compartilhamento \\10.11.10.5\inetpub\... montado via CIFS (volume abaixo),
       # o mesmo para as duas réplicas. As URLs continuam servidas pelo IIS (PathSettings:RootPathURl).
       PathSettings__RootPath: /mnt/intranet-files
+      # Endereço das fotos novas: pelo proxy /intranet do portal em HTTPS (o certificado não cobre o IP 10.11.10.5)
+      PathSettings__RootPathURl: ${FRONTEND_ORIGIN}/intranet/
     volumes:
       - intranet-files:/mnt/intranet-files
     networks: [backend]
